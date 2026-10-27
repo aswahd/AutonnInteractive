@@ -12,7 +12,6 @@ import argparse
 import logging
 import os
 import sys
-from typing import Optional
 
 import torch
 import uvicorn
@@ -131,7 +130,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _resolve_fold(raw: Optional[str]):
+def _resolve_fold(raw: str | None):
     if raw is None:
         return None
     if raw == "all":
@@ -183,7 +182,7 @@ def _resolve_model_source(args) -> str:
         raise SystemExit(str(exc))
 
 
-def _resolve_api_key(cli_value: Optional[str]) -> Optional[str]:
+def _resolve_api_key(cli_value: str | None) -> str | None:
     if cli_value:
         return cli_value
     env_value = os.environ.get("NN_INTERACTIVE_API_KEY")

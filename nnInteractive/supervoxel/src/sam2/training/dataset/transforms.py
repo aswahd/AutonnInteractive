@@ -9,18 +9,15 @@ Transforms and data augmentation for both image + bbox.
 """
 
 import logging
-
 import random
-from typing import Iterable
+from collections.abc import Iterable
 
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
 import torchvision.transforms.v2.functional as Fv2
 from PIL import Image as PILImage
-
 from torchvision.transforms import InterpolationMode
-
 from training.utils.data_utils import VideoDatapoint
 
 
@@ -204,7 +201,7 @@ class ComposeAPI:
         format_string = self.__class__.__name__ + "("
         for t in self.transforms:
             format_string += "\n"
-            format_string += "    {0}".format(t)
+            format_string += f"    {t}"
         format_string += "\n)"
         return format_string
 

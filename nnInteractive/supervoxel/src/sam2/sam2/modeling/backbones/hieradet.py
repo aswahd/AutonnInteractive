@@ -6,20 +6,18 @@
 
 import logging
 from functools import partial
-from typing import List, Tuple, Union
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from iopath.common.file_io import g_pathmgr
+from torch import nn
 
 from sam2.modeling.backbones.utils import (
     PatchEmbed,
     window_partition,
     window_unpartition,
 )
-
-from sam2.modeling.sam2_utils import DropPath, MLP
+from sam2.modeling.sam2_utils import MLP, DropPath
 
 
 def do_pool(x: torch.Tensor, pool: nn.Module, norm: nn.Module = None) -> torch.Tensor:
@@ -89,8 +87,8 @@ class MultiScaleBlock(nn.Module):
         num_heads: int,
         mlp_ratio: float = 4.0,
         drop_path: float = 0.0,
-        norm_layer: Union[nn.Module, str] = "LayerNorm",
-        q_stride: Tuple[int, int] = None,
+        norm_layer: nn.Module | str = "LayerNorm",
+        q_stride: tuple[int, int] = None,
         act_layer: nn.Module = nn.GELU,
         window_size: int = 0,
     ):
@@ -175,20 +173,20 @@ class Hiera(nn.Module):
         num_heads: int = 1,  # initial number of heads
         drop_path_rate: float = 0.0,  # stochastic depth
         q_pool: int = 3,  # number of q_pool stages
-        q_stride: Tuple[int, int] = (2, 2),  # downsample stride bet. stages
-        stages: Tuple[int, ...] = (2, 3, 16, 3),  # blocks per stage
+        q_stride: tuple[int, int] = (2, 2),  # downsample stride bet. stages
+        stages: tuple[int, ...] = (2, 3, 16, 3),  # blocks per stage
         dim_mul: float = 2.0,  # dim_mul factor at stage shift
         head_mul: float = 2.0,  # head_mul factor at stage shift
-        window_pos_embed_bkg_spatial_size: Tuple[int, int] = (14, 14),
+        window_pos_embed_bkg_spatial_size: tuple[int, int] = (14, 14),
         # window size per stage, when not using global att.
-        window_spec: Tuple[int, ...] = (
+        window_spec: tuple[int, ...] = (
             8,
             4,
             14,
             7,
         ),
         # global attn in these blocks
-        global_att_blocks: Tuple[int, ...] = (
+        global_att_blocks: tuple[int, ...] = (
             12,
             16,
             20,
@@ -262,7 +260,7 @@ class Hiera(nn.Module):
                 chkpt = torch.load(f, map_location="cpu")
             logging.info("loading Hiera", self.load_state_dict(chkpt, strict=False))
 
-    def _get_pos_embed(self, hw: Tuple[int, int]) -> torch.Tensor:
+    def _get_pos_embed(self, hw: tuple[int, int]) -> torch.Tensor:
         h, w = hw
         window_embed = self.pos_embed_window
         pos_embed = F.interpolate(self.pos_embed, size=(h, w), mode="bicubic")
@@ -270,7 +268,7 @@ class Hiera(nn.Module):
         pos_embed = pos_embed.permute(0, 2, 3, 1)
         return pos_embed
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         x = self.patch_embed(x)
         # x: (B, H, W, C)
 
@@ -292,9 +290,7 @@ class Hiera(nn.Module):
 
         if layer_name.find("rel_pos") != -1:
             return num_layers + 1
-        elif layer_name.find("pos_embed") != -1:
-            return 0
-        elif layer_name.find("patch_embed") != -1:
+        elif layer_name.find("pos_embed") != -1 or layer_name.find("patch_embed") != -1:
             return 0
         elif layer_name.find("blocks") != -1:
             return int(layer_name.split("blocks")[1].split(".")[1]) + 1

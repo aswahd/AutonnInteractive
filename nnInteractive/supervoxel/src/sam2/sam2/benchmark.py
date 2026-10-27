@@ -63,24 +63,23 @@ _, out_obj_ids, out_mask_logits = predictor.add_new_points_or_box(
 )
 
 # Warmup and then average FPS over several runs
-with torch.autocast("cuda", torch.bfloat16):
-    with torch.inference_mode():
-        for i in tqdm(range(runs), disable=not verbose, desc="Benchmarking"):
-            start = time.time()
-            # Start tracking
-            for (
-                out_frame_idx,
-                out_obj_ids,
-                out_mask_logits,
-            ) in predictor.propagate_in_video(inference_state):
-                pass
+with torch.autocast("cuda", torch.bfloat16), torch.inference_mode():
+    for i in tqdm(range(runs), disable=not verbose, desc="Benchmarking"):
+        start = time.time()
+        # Start tracking
+        for (
+            out_frame_idx,
+            out_obj_ids,
+            out_mask_logits,
+        ) in predictor.propagate_in_video(inference_state):
+            pass
 
-            end = time.time()
-            total += end - start
-            count += 1
-            if i == warm_up - 1:
-                print("Warmup FPS: ", count * num_frames / total)
-                total = 0
-                count = 0
+        end = time.time()
+        total += end - start
+        count += 1
+        if i == warm_up - 1:
+            print("Warmup FPS: ", count * num_frames / total)
+            total = 0
+            count = 0
 
 print("FPS: ", count * num_frames / total)

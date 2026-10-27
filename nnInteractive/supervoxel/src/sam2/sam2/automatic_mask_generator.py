@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 # Adapted from https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/automatic_mask_generator.py
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import torch
@@ -14,6 +14,7 @@ from torchvision.ops.boxes import batched_nms, box_area  # type: ignore
 from sam2.modeling.sam2_base import SAM2Base
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from sam2.utils.amg import (
+    MaskData,
     area_from_rle,
     batch_iterator,
     batched_mask_to_box,
@@ -24,7 +25,6 @@ from sam2.utils.amg import (
     generate_crop_boxes,
     is_box_near_crop_edge,
     mask_to_rle_pytorch,
-    MaskData,
     remove_small_regions,
     rle_to_mask,
     uncrop_boxes_xyxy,
@@ -37,7 +37,7 @@ class SAM2AutomaticMaskGenerator:
     def __init__(
         self,
         model: SAM2Base,
-        points_per_side: Optional[int] = 32,
+        points_per_side: int | None = 32,
         points_per_batch: int = 64,
         pred_iou_thresh: float = 0.8,
         stability_score_thresh: float = 0.95,
@@ -48,7 +48,7 @@ class SAM2AutomaticMaskGenerator:
         crop_nms_thresh: float = 0.7,
         crop_overlap_ratio: float = 512 / 1500,
         crop_n_points_downscale_factor: int = 1,
-        point_grids: Optional[List[np.ndarray]] = None,
+        point_grids: list[np.ndarray] | None = None,
         min_mask_region_area: int = 0,
         output_mode: str = "binary_mask",
         use_m2m: bool = False,
@@ -167,7 +167,7 @@ class SAM2AutomaticMaskGenerator:
         return cls(sam_model, **kwargs)
 
     @torch.no_grad()
-    def generate(self, image: np.ndarray) -> List[Dict[str, Any]]:
+    def generate(self, image: np.ndarray) -> list[dict[str, Any]]:
         """
         Generates masks for the given image.
 
@@ -247,9 +247,9 @@ class SAM2AutomaticMaskGenerator:
     def _process_crop(
         self,
         image: np.ndarray,
-        crop_box: List[int],
+        crop_box: list[int],
         crop_layer_idx: int,
-        orig_size: Tuple[int, ...],
+        orig_size: tuple[int, ...],
     ) -> MaskData:
         # Crop the image and calculate embeddings
         x0, y0, x1, y1 = crop_box
@@ -288,9 +288,9 @@ class SAM2AutomaticMaskGenerator:
     def _process_batch(
         self,
         points: np.ndarray,
-        im_size: Tuple[int, ...],
-        crop_box: List[int],
-        orig_size: Tuple[int, ...],
+        im_size: tuple[int, ...],
+        crop_box: list[int],
+        orig_size: tuple[int, ...],
         normalize=False,
     ) -> MaskData:
         orig_h, orig_w = orig_size

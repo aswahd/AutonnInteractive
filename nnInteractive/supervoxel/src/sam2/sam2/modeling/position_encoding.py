@@ -5,10 +5,9 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import numpy as np
-
 import torch
 from torch import nn
 
@@ -24,12 +23,12 @@ class PositionEmbeddingSine(nn.Module):
         num_pos_feats,
         temperature: int = 10000,
         normalize: bool = True,
-        scale: Optional[float] = None,
+        scale: float | None = None,
         # Following settings only relevant
         # for warmping up cache for compilation
         warmup_cache: bool = True,
         image_size: int = 1024,
-        strides: Tuple[int] = (4, 8, 16, 32),
+        strides: tuple[int] = (4, 8, 16, 32),
     ):
         super().__init__()
         assert num_pos_feats % 2 == 0, "Expecting even model width"
@@ -119,7 +118,7 @@ class PositionEmbeddingRandom(nn.Module):
     Positional encoding using random spatial frequencies.
     """
 
-    def __init__(self, num_pos_feats: int = 64, scale: Optional[float] = None) -> None:
+    def __init__(self, num_pos_feats: int = 64, scale: float | None = None) -> None:
         super().__init__()
         if scale is None or scale <= 0.0:
             scale = 1.0
@@ -137,7 +136,7 @@ class PositionEmbeddingRandom(nn.Module):
         # outputs d_1 x ... x d_n x C shape
         return torch.cat([torch.sin(coords), torch.cos(coords)], dim=-1)
 
-    def forward(self, size: Tuple[int, int]) -> torch.Tensor:
+    def forward(self, size: tuple[int, int]) -> torch.Tensor:
         """Generate positional encoding for a grid of the specified size."""
         h, w = size
         device: Any = self.positional_encoding_gaussian_matrix.device
@@ -150,7 +149,7 @@ class PositionEmbeddingRandom(nn.Module):
         pe = self._pe_encoding(torch.stack([x_embed, y_embed], dim=-1))
         return pe.permute(2, 0, 1)  # C x H x W
 
-    def forward_with_coords(self, coords_input: torch.Tensor, image_size: Tuple[int, int]) -> torch.Tensor:
+    def forward_with_coords(self, coords_input: torch.Tensor, image_size: tuple[int, int]) -> torch.Tensor:
         """Positionally encode points that are not normalized to [0,1]."""
         coords = coords_input.clone()
         coords[:, :, 0] = coords[:, :, 0] / image_size[1]

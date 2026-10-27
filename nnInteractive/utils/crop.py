@@ -1,5 +1,5 @@
-from collections.abc import Callable
-from typing import Sequence
+from collections.abc import Callable, Sequence
+
 import numpy as np
 import torch
 import torch.nn.functional as F

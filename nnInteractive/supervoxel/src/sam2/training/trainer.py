@@ -11,19 +11,17 @@ import math
 import os
 import time
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any
 
 import numpy as np
-
 import torch
 import torch.distributed as dist
-import torch.nn as nn
 from hydra.utils import instantiate
 from iopath.common.file_io import g_pathmgr
-
+from torch import nn
 from training.optimizer import construct_optimizer
-
 from training.utils.checkpoint_utils import (
     assert_skipped_parameters_are_frozen,
     exclude_params_matching_unix_pattern,
@@ -32,13 +30,14 @@ from training.utils.checkpoint_utils import (
 )
 from training.utils.data_utils import BatchedVideoDatapoint
 from training.utils.distributed import all_reduce_max, barrier, get_rank
-
 from training.utils.logger import Logger, setup_logging
-
 from training.utils.train_utils import (
     AverageMeter,
-    collect_dict_keys,
     DurationMeter,
+    MemMeter,
+    Phase,
+    ProgressMeter,
+    collect_dict_keys,
     get_amp_type,
     get_machine_local_and_dist_rank,
     get_resume_checkpoint,
@@ -46,9 +45,6 @@ from training.utils.train_utils import (
     is_dist_avail_and_initialized,
     log_env_variables,
     makedir,
-    MemMeter,
-    Phase,
-    ProgressMeter,
     set_seeds,
     setup_distributed_backend,
 )
@@ -71,9 +67,9 @@ class OptimAMPConf:
 @dataclass
 class OptimConf:
     optimizer: torch.optim.Optimizer = None
-    options: Optional[Dict[str, Any]] = None
-    param_group_modifiers: Optional[List] = None
-    amp: Optional[Dict[str, Any]] = None
+    options: dict[str, Any] | None = None
+    param_group_modifiers: list | None = None
+    amp: dict[str, Any] | None = None
     gradient_clip: Any = None
     gradient_logger: Any = None
 
@@ -88,8 +84,8 @@ class OptimConf:
 
 @dataclass
 class DistributedConf:
-    backend: Optional[str] = None  # inferred from accelerator type
-    comms_dtype: Optional[str] = None
+    backend: str | None = None  # inferred from accelerator type
+    comms_dtype: str | None = None
     find_unused_parameters: bool = False
     timeout_mins: int = 30
 
@@ -100,22 +96,22 @@ class CudaConf:
     cudnn_benchmark: bool = True
     allow_tf32: bool = False
     # if not None, `matmul_allow_tf32` key will override `allow_tf32` for matmul
-    matmul_allow_tf32: Optional[bool] = None
+    matmul_allow_tf32: bool | None = None
     # if not None, `cudnn_allow_tf32` key will override `allow_tf32` for cudnn
-    cudnn_allow_tf32: Optional[bool] = None
+    cudnn_allow_tf32: bool | None = None
 
 
 @dataclass
 class CheckpointConf:
     save_dir: str
     save_freq: int
-    save_list: List[int] = field(default_factory=list)
+    save_list: list[int] = field(default_factory=list)
     model_weight_initializer: Any = None
-    save_best_meters: List[str] = None
-    skip_saving_parameters: List[str] = field(default_factory=list)
-    initialize_after_preemption: Optional[bool] = None
+    save_best_meters: list[str] = None
+    skip_saving_parameters: list[str] = field(default_factory=list)
+    initialize_after_preemption: bool | None = None
     # if not None, training will be resumed from this checkpoint
-    resume_from: Optional[str] = None
+    resume_from: str | None = None
 
     def infer_missing(self):
         if self.initialize_after_preemption is None:
@@ -133,7 +129,7 @@ class LoggingConf:
     log_level_secondary: str = "ERROR"
     log_scalar_frequency: int = 100
     log_visual_frequency: int = 100
-    scalar_keys_to_log: Optional[Dict[str, Any]] = None
+    scalar_keys_to_log: dict[str, Any] | None = None
     log_batch_stats: bool = False
 
 
@@ -147,22 +143,22 @@ class Trainer:
     def __init__(
         self,
         *,  # the order of these args can change at any time, so they are keyword-only
-        data: Dict[str, Any],
-        model: Dict[str, Any],
-        logging: Dict[str, Any],
-        checkpoint: Dict[str, Any],
+        data: dict[str, Any],
+        model: dict[str, Any],
+        logging: dict[str, Any],
+        checkpoint: dict[str, Any],
         max_epochs: int,
         mode: str = "train",
         accelerator: str = "cuda",
         seed_value: int = 123,
         val_epoch_freq: int = 1,
-        distributed: Dict[str, bool] = None,
-        cuda: Dict[str, bool] = None,
-        env_variables: Optional[Dict[str, Any]] = None,
-        optim: Optional[Dict[str, Any]] = None,
-        optim_overrides: Optional[List[Dict[str, Any]]] = None,
-        meters: Optional[Dict[str, Any]] = None,
-        loss: Optional[Dict[str, Any]] = None,
+        distributed: dict[str, bool] = None,
+        cuda: dict[str, bool] = None,
+        env_variables: dict[str, Any] | None = None,
+        optim: dict[str, Any] | None = None,
+        optim_overrides: list[dict[str, Any]] | None = None,
+        meters: dict[str, Any] | None = None,
+        loss: dict[str, Any] | None = None,
     ):
 
         self._setup_env_variables(env_variables)
@@ -288,7 +284,7 @@ class Trainer:
             device_ids=[self.local_rank] if accelerator == "cuda" else [],
             find_unused_parameters=distributed_conf.find_unused_parameters,
         )
-        if distributed_conf.comms_dtype is not None:  # noqa
+        if distributed_conf.comms_dtype is not None:
             from torch.distributed.algorithms import ddp_comm_hooks
 
             amp_type = get_amp_type(distributed_conf.comms_dtype)
@@ -585,7 +581,7 @@ class Trainer:
             iters_per_epoch,
             [batch_time, data_time, mem, self.time_elapsed_meter, *loss_mts.values()],
             self._get_meters(curr_phases),
-            prefix="Val Epoch: [{}]".format(self.epoch),
+            prefix=f"Val Epoch: [{self.epoch}]",
         )
 
         end = time.time()
@@ -698,7 +694,7 @@ class Trainer:
                 *loss_mts.values(),
             ],
             self._get_meters([phase]),
-            prefix="Train Epoch: [{}]".format(self.epoch),
+            prefix=f"Train Epoch: [{self.epoch}]",
         )
 
         # Model training loop
@@ -802,8 +798,8 @@ class Trainer:
         self,
         batch: BatchedVideoDatapoint,
         phase: str,
-        loss_mts: Dict[str, AverageMeter],
-        extra_loss_mts: Dict[str, AverageMeter],
+        loss_mts: dict[str, AverageMeter],
+        extra_loss_mts: dict[str, AverageMeter],
         raise_on_error: bool = True,
     ):
         """
@@ -842,7 +838,7 @@ class Trainer:
                 extra_loss_mts[extra_loss_key] = AverageMeter(extra_loss_key, self.device, ":.2e")
             extra_loss_mts[extra_loss_key].update(extra_loss.item(), batch_size)
 
-    def _log_meters_and_save_best_ckpts(self, phases: List[str]):
+    def _log_meters_and_save_best_ckpts(self, phases: list[str]):
         logging.info("Synchronizing meters")
         out_dict = {}
         checkpoint_save_keys = []

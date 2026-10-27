@@ -21,12 +21,12 @@ import argparse
 import os
 import sys
 from pathlib import Path
+
 import numpy as np
 import torch
+from nnunetv2.utilities.helpers import empty_cache
 
 from nnInteractive.inference.inference_session import nnInteractiveInferenceSession
-
-from nnunetv2.utilities.helpers import empty_cache
 
 # --------------------------------------------------------------------------- #
 #                           ===  EDIT BELOW  ===                              #

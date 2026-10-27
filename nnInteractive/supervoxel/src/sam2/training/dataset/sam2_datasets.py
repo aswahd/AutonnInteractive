@@ -6,17 +6,15 @@
 
 import logging
 import math
-from typing import Callable, Iterable, List, Optional, Sequence
+from collections.abc import Callable, Iterable
 
 import torch
-
 from torch.utils.data import BatchSampler, DataLoader, Dataset, IterableDataset, Subset
-
 from torch.utils.data.distributed import DistributedSampler
 
 
 class MixedDataLoader:
-    def __init__(self, dataloaders: List[DataLoader], mixing_prob: torch.FloatTensor):
+    def __init__(self, dataloaders: list[DataLoader], mixing_prob: torch.FloatTensor):
         """
         Args:
             dataloaders (List[DataLoader]): List of DataLoaders to be mixed.
@@ -68,16 +66,16 @@ class MixedDataLoader:
 class TorchTrainMixedDataset:
     def __init__(
         self,
-        datasets: List[Dataset],
-        batch_sizes: List[int],
+        datasets: list[Dataset],
+        batch_sizes: list[int],
         num_workers: int,
         shuffle: bool,
         pin_memory: bool,
         drop_last: bool,
-        collate_fn: Optional[Callable] = None,
-        worker_init_fn: Optional[Callable] = None,
+        collate_fn: Callable | None = None,
+        worker_init_fn: Callable | None = None,
         phases_per_epoch: int = 1,
-        dataset_prob: Optional[List[float]] = None,
+        dataset_prob: list[float] | None = None,
     ) -> None:
         """
         Args:

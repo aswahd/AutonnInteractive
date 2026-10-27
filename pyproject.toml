@@ -65,6 +65,7 @@ dev = [
 nninteractive-server = "nnInteractive.inference.server.main:main"
 nninteractive-available-models = "nnInteractive.model_management:available_models_cli"
 nninteractive-download-model = "nnInteractive.model_management:download_model_cli"
+nninteractive-automatic = "nnInteractive.automatic.__main__:main"
 
 [build-system]
 requires = ["setuptools>=67.8.0"]

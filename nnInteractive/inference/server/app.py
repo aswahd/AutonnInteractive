@@ -64,15 +64,11 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from typing import Optional
 
 import blosc2
 import numpy as np
 import torch
-from fastapi import Depends, FastAPI, HTTPException, Header, Request, Response, status
-from starlette.concurrency import run_in_threadpool
-
-from nnInteractive.inference.inference_session import nnInteractiveInferenceSession
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from nnInteractive.inference.remote._protocol import (
     CONTENT_TYPE_OCTET_STREAM,
     LEASE_HEADER,
@@ -96,6 +92,9 @@ from nnInteractive.inference.remote._protocol import (
     PATH_UNDO,
 )
 from nnInteractive.inference.remote.serialization import pack_array, unpack_array
+from starlette.concurrency import run_in_threadpool
+
+from nnInteractive.inference.inference_session import nnInteractiveInferenceSession
 
 logger = logging.getLogger("nninteractive.server")
 
@@ -239,7 +238,7 @@ class SessionRegistry:
             )
             return token
 
-    def get(self, token: Optional[str]) -> SessionEntry:
+    def get(self, token: str | None) -> SessionEntry:
         """Look up a session by lease token, marking it seen (liveness) on success.
 
         Note this only refreshes the liveness clock, not activity: a bare
@@ -255,7 +254,7 @@ class SessionRegistry:
         entry.mark_seen()
         return entry
 
-    def peek(self, token: Optional[str]) -> SessionEntry:
+    def peek(self, token: str | None) -> SessionEntry:
         """Look up without touching last_active_at. Used for /lease_status."""
         if not token:
             raise HTTPException(status.HTTP_410_GONE, detail="lease token missing")
@@ -265,7 +264,7 @@ class SessionRegistry:
                 raise HTTPException(status.HTTP_410_GONE, detail="lease expired or unknown")
         return entry
 
-    def release(self, token: Optional[str]) -> bool:
+    def release(self, token: str | None) -> bool:
         """Release a session by token. Idempotent; returns True if a session was actually released."""
         if not token:
             return False
@@ -353,10 +352,10 @@ def make_app(
     use_torch_compile: bool = False,
     interactions_storage: str = "auto",
     verbose: bool = False,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     sweep_interval_seconds: float = 15.0,
     enable_undo: bool = True,
-    gpu_executor: Optional[ThreadPoolExecutor] = None,
+    gpu_executor: ThreadPoolExecutor | None = None,
 ) -> FastAPI:
     """Build the server app.
 
@@ -442,7 +441,7 @@ def make_app(
 
     # ----------------------------- auth ----------------------------------- #
 
-    def require_auth(authorization: Optional[str] = Header(default=None)) -> None:
+    def require_auth(authorization: str | None = Header(default=None)) -> None:
         if api_key is None:
             return
         if not authorization or not authorization.startswith("Bearer "):
@@ -452,14 +451,14 @@ def make_app(
 
     auth = Depends(require_auth)
 
-    def require_lease(x_lease_token: Optional[str] = Header(default=None, alias=LEASE_HEADER)) -> SessionEntry:
+    def require_lease(x_lease_token: str | None = Header(default=None, alias=LEASE_HEADER)) -> SessionEntry:
         return registry.get(x_lease_token)
 
     lease = Depends(require_lease)
 
     # --------------------------- helpers ---------------------------------- #
 
-    def _parse_meta_header(meta_header: Optional[str]) -> dict:
+    def _parse_meta_header(meta_header: str | None) -> dict:
         if meta_header is None:
             return {}
         try:
@@ -619,7 +618,7 @@ def make_app(
         )
 
     @app.post(PATH_RELEASE, dependencies=[auth])
-    def release(x_lease_token: Optional[str] = Header(default=None, alias=LEASE_HEADER)) -> dict:
+    def release(x_lease_token: str | None = Header(default=None, alias=LEASE_HEADER)) -> dict:
         registry.release(x_lease_token)
         # Idempotent: succeed even if the lease was already gone.
         return {"released": True}
@@ -631,7 +630,7 @@ def make_app(
         return {"remaining_seconds": registry.remaining_seconds(entry)}
 
     @app.get(PATH_LEASE_STATUS, dependencies=[auth])
-    def lease_status(x_lease_token: Optional[str] = Header(default=None, alias=LEASE_HEADER)) -> dict:
+    def lease_status(x_lease_token: str | None = Header(default=None, alias=LEASE_HEADER)) -> dict:
         # Read-only probe: does NOT touch last_active_at.
         entry = registry.peek(x_lease_token)
         return {

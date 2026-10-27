@@ -5,13 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Tuple
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
-from sam2.modeling.sam2_utils import DropPath, get_clones, LayerNorm2d
+from sam2.modeling.sam2_utils import DropPath, LayerNorm2d, get_clones
 
 
 class MaskDownSampler(nn.Module):
@@ -93,7 +92,7 @@ class CXBlock(nn.Module):
         self.act = nn.GELU()
         self.pwconv2 = nn.Linear(4 * dim, dim)
         self.gamma = (
-            nn.Parameter(layer_scale_init_value * torch.ones((dim)), requires_grad=True)
+            nn.Parameter(layer_scale_init_value * torch.ones(dim), requires_grad=True)
             if layer_scale_init_value > 0
             else None
         )
@@ -158,7 +157,7 @@ class MemoryEncoder(nn.Module):
         pix_feat: torch.Tensor,
         masks: torch.Tensor,
         skip_mask_sigmoid: bool = False,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         ## Process masks
         # sigmoid, so that less domain shift from gt masks which are bool
         if not skip_mask_sigmoid:

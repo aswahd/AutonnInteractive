@@ -1,11 +1,11 @@
+from collections.abc import Callable
 from functools import lru_cache
-from typing import Callable, Tuple, Optional
 
 import numpy as np
 import torch
-from batchgeneratorsv2.helpers.scalar_type import sample_scalar, RandomScalar
+from batchgeneratorsv2.helpers.scalar_type import RandomScalar, sample_scalar
 from scipy.ndimage import distance_transform_edt
-from skimage.morphology import disk, ball
+from skimage.morphology import ball, disk
 
 
 @lru_cache(maxsize=5)
@@ -73,12 +73,12 @@ class PointInteraction_stub:
 
     def place_point(
         self,
-        position: Tuple[int, ...],
+        position: tuple[int, ...],
         interaction_map,
         binarize: bool = False,
         intensity_scale: float = 1.0,
-        channel_idx: Optional[int] = None,
-        before_write: Optional[Callable[[tuple, object], None]] = None,
+        channel_idx: int | None = None,
+        before_write: Callable[[tuple, object], None] | None = None,
     ) -> torch.Tensor:
         """
         Places a point on the interaction map around the specified position.

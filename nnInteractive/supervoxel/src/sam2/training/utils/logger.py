@@ -10,15 +10,13 @@ import functools
 import logging
 import sys
 import uuid
-from typing import Any, Dict, Optional, Union
+from typing import Any, Union
 
 from hydra.utils import instantiate
-
 from iopath.common.file_io import g_pathmgr
 from numpy import ndarray
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
-
 from training.utils.train_utils import get_machine_local_and_dist_rank, makedir
 
 Scalar = Union[Tensor, ndarray, int, float]
@@ -57,7 +55,7 @@ class TensorBoardWriterWrapper:
             path (str): path to write logs to
             *args, **kwargs: Extra arguments to pass to SummaryWriter
         """
-        self._writer: Optional[SummaryWriter] = None
+        self._writer: SummaryWriter | None = None
         _, self._rank = get_machine_local_and_dist_rank()
         self._path: str = path
         if self._rank == 0:
@@ -73,7 +71,7 @@ class TensorBoardWriterWrapper:
         atexit.register(self.close)
 
     @property
-    def writer(self) -> Optional[SummaryWriter]:
+    def writer(self) -> SummaryWriter | None:
         return self._writer
 
     @property
@@ -105,7 +103,7 @@ class TensorBoardLogger(TensorBoardWriterWrapper):
     A simple logger for TensorBoard.
     """
 
-    def log_dict(self, payload: Dict[str, Scalar], step: int) -> None:
+    def log_dict(self, payload: dict[str, Scalar], step: int) -> None:
         """Add multiple scalar values to TensorBoard.
 
         Args:
@@ -129,7 +127,7 @@ class TensorBoardLogger(TensorBoardWriterWrapper):
             return
         self._writer.add_scalar(name, data, global_step=step, new_style=True)
 
-    def log_hparams(self, hparams: Dict[str, Scalar], meters: Dict[str, Scalar]) -> None:
+    def log_hparams(self, hparams: dict[str, Scalar], meters: dict[str, Scalar]) -> None:
         """Add hyperparameter data to TensorBoard.
 
         Args:
@@ -152,7 +150,7 @@ class Logger:
         tb_should_log = tb_config and tb_config.pop("should_log", True)
         self.tb_logger = instantiate(tb_config) if tb_should_log else None
 
-    def log_dict(self, payload: Dict[str, Scalar], step: int) -> None:
+    def log_dict(self, payload: dict[str, Scalar], step: int) -> None:
         if self.tb_logger:
             self.tb_logger.log_dict(payload, step)
 
@@ -160,14 +158,14 @@ class Logger:
         if self.tb_logger:
             self.tb_logger.log(name, data, step)
 
-    def log_hparams(self, hparams: Dict[str, Scalar], meters: Dict[str, Scalar]) -> None:
+    def log_hparams(self, hparams: dict[str, Scalar], meters: dict[str, Scalar]) -> None:
         if self.tb_logger:
             self.tb_logger.log_hparams(hparams, meters)
 
 
 # cache the opened file object, so that different calls to `setup_logger`
 # with the same file name can safely write to the same file.
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _cached_log_stream(filename):
     # we tune the buffering value so that the logs are updated
     # frequently.

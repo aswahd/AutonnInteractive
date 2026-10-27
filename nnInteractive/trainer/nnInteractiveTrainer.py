@@ -1,5 +1,8 @@
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
-from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
+from nnunetv2.utilities.plans_handling.plans_handler import (
+    ConfigurationManager,
+    PlansManager,
+)
 from torch import nn
 
 

@@ -1,0 +1,42 @@
+{
+  "checkpoint_dir": "/path/to/nnInteractive_v1.0",
+  "checkpoint_fold": "0",
+  "data_manifest": "/path/to/training_manifest.json",
+  "training": {
+    "updates": 150000,
+    "support_count": 4,
+    "microbatch": 1,
+    "effective_batch": 4,
+    "backbone_lr": 0.0001,
+    "context_lr": 0.0001,
+    "supervise_supports": false,
+    "lambda_support": 0,
+    "prompt_probabilities": {
+      "dense_mask": 1.0,
+      "point": 0.0,
+      "scribble": 0.0,
+      "box": 0.0,
+      "lasso": 0.0
+    },
+    "spatial_sampling": {
+      "full_volume_probability": 0.5,
+      "targeted_probability_given_patch": 0.8,
+      "context_margin_mm": 15,
+      "broad_supports": 4
+    }
+  },
+  "model": {
+    "patch_size": [192, 192, 192],
+    "context_patch_size": [192, 192, 192],
+    "fixed_support_crop": true,
+    "attention_depth": 4,
+    "cross_attention_type": "hierarchical",
+    "support_aggregation": "learned",
+    "rope_3d": true,
+    "interleave_query_context": true,
+    "support_mask_context": true,
+    "convert_dense_support_masks": false,
+    "activation_checkpointing": true,
+    "support_encoder_chunk_size": 1
+  }
+}

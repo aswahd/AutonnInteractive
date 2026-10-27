@@ -5,20 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import glob
-import logging
 import os
 from dataclasses import dataclass
 
-from typing import List, Optional
-
-import pandas as pd
-
 import torch
-
 from iopath.common.file_io import g_pathmgr
-
 from omegaconf.listconfig import ListConfig
-
 from training.dataset.vos_segment_loader import (
     JSONSegmentLoader,
     MultiplePNGSegmentLoader,
@@ -31,15 +23,15 @@ from training.dataset.vos_segment_loader import (
 class VOSFrame:
     frame_idx: int
     image_path: str
-    data: Optional[torch.Tensor] = None
-    is_conditioning_only: Optional[bool] = False
+    data: torch.Tensor | None = None
+    is_conditioning_only: bool | None = False
 
 
 @dataclass
 class VOSVideo:
     video_name: str
     video_id: int
-    frames: List[VOSFrame]
+    frames: list[VOSFrame]
 
     def __len__(self):
         return len(self.frames)

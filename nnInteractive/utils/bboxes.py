@@ -1,10 +1,9 @@
-from typing import List, Union, Tuple
 
 import numpy as np
 import torch
 
 
-def _nonzero_bbox_inclusive(mask: torch.Tensor) -> Tuple[List[int], List[int]]:
+def _nonzero_bbox_inclusive(mask: torch.Tensor) -> tuple[list[int], list[int]]:
     """Inclusive per-axis [min, max] coordinates of the nonzero voxels of a 3D mask (which must contain some).
 
     Same result as ``torch.nonzero(mask).min(0)`` / ``.max(0)``, but without materializing one int64 index triple per
@@ -28,7 +27,7 @@ def _nonzero_bbox_inclusive(mask: torch.Tensor) -> Tuple[List[int], List[int]]:
 def generate_bounding_boxes(
     mask,
     bbox_size=(192, 192, 192),
-    stride: Union[List[int], Tuple[int, int, int], str] = (16, 16, 16),
+    stride: list[int] | tuple[int, int, int] | str = (16, 16, 16),
     margin=(10, 10, 10),
     max_depth=5,
     current_depth=0,

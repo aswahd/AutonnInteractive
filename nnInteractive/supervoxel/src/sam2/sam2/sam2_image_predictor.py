@@ -6,14 +6,11 @@
 
 import logging
 
-from typing import List, Optional, Tuple, Union
-
 import numpy as np
 import torch
 from PIL.Image import Image
 
 from sam2.modeling.sam2_base import SAM2Base
-
 from sam2.utils.transforms import SAM2Transforms
 
 
@@ -85,7 +82,7 @@ class SAM2ImagePredictor:
     @torch.no_grad()
     def set_image(
         self,
-        image: Union[np.ndarray, Image],
+        image: np.ndarray | Image,
     ) -> None:
         """
         Calculates the image embeddings for the provided image, allowing
@@ -131,7 +128,7 @@ class SAM2ImagePredictor:
     @torch.no_grad()
     def set_image_batch(
         self,
-        image_list: List[Union[np.ndarray]],
+        image_list: list[np.ndarray],
     ) -> None:
         """
         Calculates the image embeddings for the provided image batch, allowing
@@ -174,14 +171,14 @@ class SAM2ImagePredictor:
 
     def predict_batch(
         self,
-        point_coords_batch: List[np.ndarray] = None,
-        point_labels_batch: List[np.ndarray] = None,
-        box_batch: List[np.ndarray] = None,
-        mask_input_batch: List[np.ndarray] = None,
+        point_coords_batch: list[np.ndarray] = None,
+        point_labels_batch: list[np.ndarray] = None,
+        box_batch: list[np.ndarray] = None,
+        mask_input_batch: list[np.ndarray] = None,
         multimask_output: bool = True,
         return_logits: bool = False,
         normalize_coords=True,
-    ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
+    ) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
         """This function is very similar to predict(...), however it is used for batched mode, when the model is expected to generate predictions on multiple images.
         It returns a tuple of lists of masks, ious, and low_res_masks_logits.
         """
@@ -226,14 +223,14 @@ class SAM2ImagePredictor:
 
     def predict(
         self,
-        point_coords: Optional[np.ndarray] = None,
-        point_labels: Optional[np.ndarray] = None,
-        box: Optional[np.ndarray] = None,
-        mask_input: Optional[np.ndarray] = None,
+        point_coords: np.ndarray | None = None,
+        point_labels: np.ndarray | None = None,
+        box: np.ndarray | None = None,
+        mask_input: np.ndarray | None = None,
         multimask_output: bool = True,
         return_logits: bool = False,
         normalize_coords=True,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Predict masks for the given input prompts, using the currently set image.
 
@@ -316,14 +313,14 @@ class SAM2ImagePredictor:
     @torch.no_grad()
     def _predict(
         self,
-        point_coords: Optional[torch.Tensor],
-        point_labels: Optional[torch.Tensor],
-        boxes: Optional[torch.Tensor] = None,
-        mask_input: Optional[torch.Tensor] = None,
+        point_coords: torch.Tensor | None,
+        point_labels: torch.Tensor | None,
+        boxes: torch.Tensor | None = None,
+        mask_input: torch.Tensor | None = None,
         multimask_output: bool = True,
         return_logits: bool = False,
         img_idx: int = -1,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Predict masks for the given input prompts, using the currently set image.
         Input prompts are batched torch tensors and are expected to already be

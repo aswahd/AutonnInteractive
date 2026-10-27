@@ -7,29 +7,21 @@
 import contextlib
 import fnmatch
 import logging
+from collections.abc import Callable, Mapping, Sequence
 from typing import (
     Any,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
 )
 
 import numpy as np
 import torch
-import torch.nn as nn
 from iopath.common.file_io import g_pathmgr
+from torch import nn
 from torch.jit._script import RecursiveScriptModule
 
 
 def unix_pattern_to_parameter_names(
-    constraints: List[str], all_parameter_names: Sequence[str]
-) -> Union[None, Set[str]]:
+    constraints: list[str], all_parameter_names: Sequence[str]
+) -> None | set[str]:
     """
     Go through the list of parameter names and select those that match
     any of the provided constraints
@@ -43,8 +35,8 @@ def unix_pattern_to_parameter_names(
 
 
 def filter_params_matching_unix_pattern(
-    patterns: List[str], state_dict: Dict[str, torch.Tensor]
-) -> Dict[str, torch.Tensor]:
+    patterns: list[str], state_dict: dict[str, torch.Tensor]
+) -> dict[str, torch.Tensor]:
     """
     Remove from the state dictionary the parameters matching the provided unix patterns
 
@@ -64,8 +56,8 @@ def filter_params_matching_unix_pattern(
 
 
 def exclude_params_matching_unix_pattern(
-    patterns: List[str], state_dict: Dict[str, torch.Tensor]
-) -> Dict[str, torch.Tensor]:
+    patterns: list[str], state_dict: dict[str, torch.Tensor]
+) -> dict[str, torch.Tensor]:
     """
     Remove from the state dictionary the parameters matching the provided unix patterns
 
@@ -84,7 +76,7 @@ def exclude_params_matching_unix_pattern(
     return {k: v for k, v in state_dict.items() if k not in excluded_keys}
 
 
-def _get_state_dict_summary(state_dict: Dict[str, torch.Tensor]):
+def _get_state_dict_summary(state_dict: dict[str, torch.Tensor]):
     keys = []
     trace = []
     for k, v in state_dict.items():
@@ -94,7 +86,7 @@ def _get_state_dict_summary(state_dict: Dict[str, torch.Tensor]):
     return trace
 
 
-def assert_skipped_parameters_are_frozen(model: nn.Module, patterns: List[str]):
+def assert_skipped_parameters_are_frozen(model: nn.Module, patterns: list[str]):
     """
     Verifies that all the parameters matching the provided patterns
     are frozen - this acts as a safeguard when ignoring parameter
@@ -110,7 +102,7 @@ def assert_skipped_parameters_are_frozen(model: nn.Module, patterns: List[str]):
 
 
 @contextlib.contextmanager
-def with_check_parameter_frozen(model: nn.Module, patterns: List[str], disabled: bool = True):
+def with_check_parameter_frozen(model: nn.Module, patterns: list[str], disabled: bool = True):
     """
     Context manager that inspects a model surrounding a piece of code
     and verifies if the model has been updated by this piece of code
@@ -137,7 +129,7 @@ def with_check_parameter_frozen(model: nn.Module, patterns: List[str], disabled:
 
     if not np.allclose(summary_before, summary_after, atol=1e-6):
         raise ValueError(
-            f"""
+            """
             The `model_weight_initializer` has initialized parameters frozen with `skip_saving_parameters`.
             You can resolve this error by either initializing those parameters from within the model definition
             or using the flag `trainer.checkpoint.initialize_after_preemption` to True.
@@ -154,10 +146,10 @@ class CkptExcludeKernel:
             that are eligible for this kernel.
     """
 
-    def __init__(self, key_pattern: List[str]):
+    def __init__(self, key_pattern: list[str]):
         self.key_pattern = key_pattern
 
-    def __call__(self, state_dict: Dict):
+    def __call__(self, state_dict: dict):
         """
         Args:
             state_dict: A dictionary representing the given checkpoint's state dict.
@@ -169,8 +161,8 @@ class CkptExcludeKernel:
 
 
 def load_checkpoint(
-    path_list: List[str],
-    pick_recursive_keys: Optional[List[str]] = None,
+    path_list: list[str],
+    pick_recursive_keys: list[str] | None = None,
     map_location: str = "cpu",
 ) -> Any:
     """
@@ -223,8 +215,8 @@ def get_state_dict(checkpoint, ckpt_state_dict_keys):
 
 def load_checkpoint_and_apply_kernels(
     checkpoint_path: str,
-    checkpoint_kernels: List[Callable] = None,
-    ckpt_state_dict_keys: Tuple[str] = ("state_dict",),
+    checkpoint_kernels: list[Callable] = None,
+    ckpt_state_dict_keys: tuple[str] = ("state_dict",),
     map_location: str = "cpu",
 ) -> nn.Module:
     """
@@ -243,7 +235,7 @@ def load_checkpoint_and_apply_kernels(
 
     Returns: Model with the matchin pre-trained weights loaded.
     """
-    assert g_pathmgr.exists(checkpoint_path), "Checkpoint '{}' not found".format(checkpoint_path)
+    assert g_pathmgr.exists(checkpoint_path), f"Checkpoint '{checkpoint_path}' not found"
 
     # Load the checkpoint on CPU to avoid GPU mem spike.
     with g_pathmgr.open(checkpoint_path, "rb") as f:
@@ -271,8 +263,8 @@ def check_load_state_dict_errors(
     missing_keys,
     unexpected_keys,
     strict: bool,
-    ignore_missing_keys: List[str] = None,
-    ignore_unexpected_keys: List[str] = None,
+    ignore_missing_keys: list[str] = None,
+    ignore_unexpected_keys: list[str] = None,
 ):
     if ignore_missing_keys is not None and len(ignore_missing_keys) > 0:
         ignored_keys = unix_pattern_to_parameter_names(ignore_missing_keys, missing_keys)
@@ -295,12 +287,12 @@ def check_load_state_dict_errors(
 
 
 def load_state_dict_into_model(
-    state_dict: Dict,
+    state_dict: dict,
     model: nn.Module,
     strict: bool = True,
-    ignore_missing_keys: List[str] = None,
-    ignore_unexpected_keys: List[str] = None,
-    checkpoint_kernels: List[Callable] = None,
+    ignore_missing_keys: list[str] = None,
+    ignore_unexpected_keys: list[str] = None,
+    checkpoint_kernels: list[Callable] = None,
 ):
     """
     Loads a state dict into the given model.

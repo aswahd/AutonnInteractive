@@ -53,7 +53,7 @@ class _FullPackageRequiredFinder(MetaPathFinder):
         if feature is None:
             # Not a known full-only module: stay out of the way and let the
             # normal ModuleNotFoundError propagate.
-            return None
+            return
         raise ModuleNotFoundError(
             f"{fullname!r} requires the full nnInteractive package "
             f"({feature}), which is not installed.\n"

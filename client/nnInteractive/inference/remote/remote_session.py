@@ -12,7 +12,6 @@ import json
 import os
 import threading
 import warnings
-from typing import List, Optional, Tuple, Union
 
 import blosc2
 import httpx
@@ -86,7 +85,7 @@ def _raise_for_lease_errors(resp: httpx.Response) -> None:
         raise ServerAtCapacityError(_extract_detail(resp) or "server is at capacity")
 
 
-def _extract_detail(resp: httpx.Response) -> Optional[str]:
+def _extract_detail(resp: httpx.Response) -> str | None:
     try:
         data = resp.json()
     except (json.JSONDecodeError, ValueError):
@@ -98,7 +97,7 @@ def _extract_detail(resp: httpx.Response) -> Optional[str]:
     return None
 
 
-def _buffer_dtype_str(target_buffer: Union[np.ndarray, "torch.Tensor"]) -> str:
+def _buffer_dtype_str(target_buffer: np.ndarray | torch.Tensor) -> str:
     if torch is not None and isinstance(target_buffer, torch.Tensor):
         return str(target_buffer.dtype).replace("torch.", "")
     return str(np.dtype(target_buffer.dtype))
@@ -165,7 +164,7 @@ class nnInteractiveRemoteInferenceSession:
     def __init__(
         self,
         server_url: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         connect_timeout: float = 10.0,
         read_timeout: float = 60.0,
         set_image_read_timeout: float = 600.0,
@@ -199,7 +198,7 @@ class nnInteractiveRemoteInferenceSession:
             write=write_timeout,
             pool=pool_timeout,
         )
-        self._lease_token: Optional[str] = None
+        self._lease_token: str | None = None
 
         # Claim a session on the server. The lease token is then attached to
         # every subsequent request via the shared httpx headers dict; the
@@ -218,7 +217,7 @@ class nnInteractiveRemoteInferenceSession:
         # thread itself is started at the end of __init__, once construction has
         # fully succeeded.
         self._stop_heartbeat = threading.Event()
-        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._heartbeat_thread: threading.Thread | None = None
 
         caps = self._get_json(PATH_CAPABILITIES)
 
@@ -239,18 +238,18 @@ class nnInteractiveRemoteInferenceSession:
         # nnInteractiveInferenceSession.license so a GUI can display it
         # regardless of whether it holds a local or remote session.
         # "!!MISSING!!" means the server could not determine the license.
-        self.license: Optional[str] = caps.get("license")
+        self.license: str | None = caps.get("license")
         # Older servers predate the /undo endpoint and omit this flag; default False so the
         # GUI can disable undo instead of issuing requests that would 404. Also False when the
         # server was started with --no-undo (undo disabled server-wide).
         self.supports_undo: bool = bool(caps.get("supports_undo", False))
 
-        self.original_image_shape: Optional[Tuple[int, ...]] = None
-        self.target_buffer: Union[np.ndarray, "torch.Tensor", None] = None
+        self.original_image_shape: tuple[int, ...] | None = None
+        self.target_buffer: np.ndarray | torch.Tensor | None = None
         # Bbox (clipped, in target-buffer coordinates) of the region the most recent prediction
         # wrote into target_buffer, mirrored from the server response. None when nothing was
         # written. Mirrors the local session's API so callers get the changed region either way.
-        self._last_paste_bbox: Optional[List[List[int]]] = None
+        self._last_paste_bbox: list[list[int]] | None = None
         self.do_autozoom: bool = bool(caps.get("do_autozoom", True))
 
         # Construction succeeded — start auto-heartbeating to keep the server
@@ -288,7 +287,7 @@ class nnInteractiveRemoteInferenceSession:
         path: str,
         meta: dict,
         array_bytes: bytes,
-        timeout: Union[httpx.Timeout, float, None] = None,
+        timeout: httpx.Timeout | float | None = None,
     ) -> httpx.Response:
         headers = {
             META_HEADER: json.dumps(_to_jsonable(meta), separators=(",", ":")),
@@ -329,7 +328,7 @@ class nnInteractiveRemoteInferenceSession:
         self._write_bbox_into_target_buffer(diff, bbox)
         return ran
 
-    def _write_bbox_into_target_buffer(self, diff: np.ndarray, bbox: List[List[int]]) -> None:
+    def _write_bbox_into_target_buffer(self, diff: np.ndarray, bbox: list[list[int]]) -> None:
         slicer = tuple(slice(int(lb), int(ub)) for lb, ub in bbox)
         tb = self.target_buffer
         if torch is not None and isinstance(tb, torch.Tensor):
@@ -357,7 +356,7 @@ class nnInteractiveRemoteInferenceSession:
             stacklevel=2,
         )
 
-    def set_image(self, image: np.ndarray, image_properties: Optional[dict] = None) -> None:
+    def set_image(self, image: np.ndarray, image_properties: dict | None = None) -> None:
         assert image.ndim == 4, f"expected a 4d image as input, got {image.ndim}d. Shape {image.shape}"
         meta = {"image_properties": image_properties or {}}
         resp = self._post_binary(
@@ -369,7 +368,7 @@ class nnInteractiveRemoteInferenceSession:
         info = resp.json()
         self.original_image_shape = tuple(info["original_image_shape"])
 
-    def set_target_buffer(self, target_buffer: Union[np.ndarray, "torch.Tensor"]) -> None:
+    def set_target_buffer(self, target_buffer: np.ndarray | torch.Tensor) -> None:
         self.target_buffer = target_buffer
         self._post_json(
             PATH_SET_TARGET_BUFFER,
@@ -398,7 +397,7 @@ class nnInteractiveRemoteInferenceSession:
         resp = self._post_json(PATH_UNDO, {})
         return self._apply_prediction_response(resp)
 
-    def _predict(self, force_full_refine: bool = False) -> Optional[List[List[int]]]:
+    def _predict(self, force_full_refine: bool = False) -> list[list[int]] | None:
         """Run prediction on the accumulated interactions without adding a new one.
 
         Mirrors the local session's ``_predict`` so callers can trigger a manual
@@ -415,7 +414,7 @@ class nnInteractiveRemoteInferenceSession:
         include_interaction: bool,
         run_prediction: bool = True,
         override_capability_checks: bool = False,
-    ) -> Optional[List[List[int]]]:
+    ) -> list[list[int]] | None:
         resp = self._post_json(
             PATH_ADD_BBOX,
             {
@@ -434,7 +433,7 @@ class nnInteractiveRemoteInferenceSession:
         include_interaction: bool,
         run_prediction: bool = True,
         override_capability_checks: bool = False,
-    ) -> Optional[List[List[int]]]:
+    ) -> list[list[int]] | None:
         resp = self._post_json(
             PATH_ADD_POINT,
             {
@@ -453,8 +452,8 @@ class nnInteractiveRemoteInferenceSession:
         include_interaction: bool,
         run_prediction: bool = True,
         override_capability_checks: bool = False,
-        interaction_bbox: Optional[List[List[int]]] = None,
-    ) -> Optional[List[List[int]]]:
+        interaction_bbox: list[list[int]] | None = None,
+    ) -> list[list[int]] | None:
         return self._post_mask_interaction(
             PATH_ADD_SCRIBBLE,
             scribble_image,
@@ -470,8 +469,8 @@ class nnInteractiveRemoteInferenceSession:
         include_interaction: bool,
         run_prediction: bool = True,
         override_capability_checks: bool = False,
-        interaction_bbox: Optional[List[List[int]]] = None,
-    ) -> Optional[List[List[int]]]:
+        interaction_bbox: list[list[int]] | None = None,
+    ) -> list[list[int]] | None:
         return self._post_mask_interaction(
             PATH_ADD_LASSO,
             lasso_image,
@@ -488,8 +487,8 @@ class nnInteractiveRemoteInferenceSession:
         include_interaction: bool,
         run_prediction: bool,
         override_capability_checks: bool,
-        interaction_bbox: Optional[List[List[int]]],
-    ) -> Optional[List[List[int]]]:
+        interaction_bbox: list[list[int]] | None,
+    ) -> list[list[int]] | None:
         meta = {
             "include_interaction": bool(include_interaction),
             "run_prediction": bool(run_prediction),
@@ -508,7 +507,7 @@ class nnInteractiveRemoteInferenceSession:
         initial_seg: np.ndarray,
         run_prediction: bool = False,
         override_capability_checks: bool = False,
-    ) -> Optional[List[List[int]]]:
+    ) -> list[list[int]] | None:
         # Mirror the local session: target_buffer is overwritten with initial_seg
         # before any prediction runs. The server does this on its side; we mirror
         # it client-side so the user's buffer reflects the result immediately,

@@ -1,12 +1,11 @@
 import re
-from typing import Tuple
 
 
-def version_to_tuple(version: str) -> Tuple[int, ...]:
+def version_to_tuple(version: str) -> tuple[int, ...]:
     return tuple(int(i) for i in re.findall(r"\d+", version))
 
 
-def parse_channel_pair(channel_name: str, raw_channels) -> Tuple[int, int]:
+def parse_channel_pair(channel_name: str, raw_channels) -> tuple[int, int]:
     if not isinstance(raw_channels, (tuple, list)) or len(raw_channels) != 2:
         raise ValueError(
             f"Invalid channel mapping for '{channel_name}': expected a pair [pos, neg], got {raw_channels}."

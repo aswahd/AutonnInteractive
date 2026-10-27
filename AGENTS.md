@@ -38,3 +38,11 @@ Also run formatting, linting, and spelling checks for touched areas.
 Recent history uses short, imperative subjects such as `disable compile on cpu`, `reduce threshold for blosc2`, and `bump version`. Keep commits focused and include body context for behavior changes, compatibility breaks, or dependency assumptions.
 
 Pull requests should state what changed, why it changed, exact validation commands, related issues or integrations, and any GPU, PyTorch, checkpoint, server/client, or API-compatibility assumptions. Do not commit local model checkpoints, API keys, or generated large outputs.
+
+
+
+### Code size
+
+* **Minimize LOC aggressively.** I read every line myself; extra code is a liability.
+* Prefer deleting, reusing, or simplifying code over adding new code. No code golfing.
+* Implement only core features. Aim for <50 added lines per feature; justify exceeding this.

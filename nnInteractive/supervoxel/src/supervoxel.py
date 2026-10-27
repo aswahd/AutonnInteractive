@@ -1,11 +1,11 @@
-import torch
-from typing import List
-import numpy as np
-from reader import NfitiReaderWriter, BloscReaderWriter
-from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-from sam2.sam2.build_sam import build_sam2_video_predictor
 import concurrent.futures
+
 import cc3d
+import numpy as np
+import torch
+from reader import BloscReaderWriter, NfitiReaderWriter
+from sam2.sam2.build_sam import build_sam2_video_predictor
+from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
 
 class SuperVoxelGenerator:
@@ -44,7 +44,7 @@ class SuperVoxelGenerator:
         model_cfg = "sam2/configs/sam2.1/sam2.1_hiera_l.yaml"
         self.sam2_predictor = build_sam2_video_predictor(model_cfg, ckpt_path=self.config["sam2_checkpoint"])
 
-    def sam2_propagation(self, sam2_predictor_state, image_data: np.ndarray, masks: List[np.ndarray], slice_idx: int):
+    def sam2_propagation(self, sam2_predictor_state, image_data: np.ndarray, masks: list[np.ndarray], slice_idx: int):
         """
         Propagate the masks using SAM2
 

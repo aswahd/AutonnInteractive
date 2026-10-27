@@ -6,12 +6,11 @@
 
 
 import copy
-from typing import Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from sam2.utils.misc import mask_to_box
 
@@ -90,7 +89,7 @@ def get_clones(module, N):
 class DropPath(nn.Module):
     # adapted from https://github.com/huggingface/pytorch-image-models/blob/main/timm/layers/drop.py
     def __init__(self, drop_prob=0.0, scale_by_keep=True):
-        super(DropPath, self).__init__()
+        super().__init__()
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
 
@@ -106,7 +105,7 @@ class DropPath(nn.Module):
 
 
 # Lightly adapted from
-# https://github.com/facebookresearch/MaskFormer/blob/main/mask_former/modeling/transformer/transformer_predictor.py # noqa
+# https://github.com/facebookresearch/MaskFormer/blob/main/mask_former/modeling/transformer/transformer_predictor.py
 class MLP(nn.Module):
     def __init__(
         self,
@@ -132,8 +131,8 @@ class MLP(nn.Module):
         return x
 
 
-# From https://github.com/facebookresearch/detectron2/blob/main/detectron2/layers/batch_norm.py # noqa
-# Itself from https://github.com/facebookresearch/ConvNeXt/blob/d1fa8f6fef0a165b27399986cc2bdacc92777e40/models/convnext.py#L119  # noqa
+# From https://github.com/facebookresearch/detectron2/blob/main/detectron2/layers/batch_norm.py
+# Itself from https://github.com/facebookresearch/ConvNeXt/blob/d1fa8f6fef0a165b27399986cc2bdacc92777e40/models/convnext.py#L119
 class LayerNorm2d(nn.Module):
     def __init__(self, num_channels: int, eps: float = 1e-6) -> None:
         super().__init__()
@@ -155,7 +154,7 @@ def sample_box_points(
     noise_bound: int = 20,  # SAM default
     top_left_label: int = 2,
     bottom_right_label: int = 3,
-) -> Tuple[np.array, np.array]:
+) -> tuple[np.array, np.array]:
     """
     Sample a noised version of the top left and bottom right corners of a given `bbox`
 

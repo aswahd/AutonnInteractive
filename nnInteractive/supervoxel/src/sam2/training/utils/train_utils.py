@@ -10,10 +10,8 @@ import os
 import random
 import re
 from datetime import timedelta
-from typing import Optional
 
 import hydra
-
 import numpy as np
 import omegaconf
 import torch
@@ -135,7 +133,7 @@ def is_dist_avail_and_initialized():
     return True
 
 
-def get_amp_type(amp_type: Optional[str] = None):
+def get_amp_type(amp_type: str | None = None):
     if amp_type is None:
         return None
     assert amp_type in ["bfloat16", "float16"], "Invalid Amp type."

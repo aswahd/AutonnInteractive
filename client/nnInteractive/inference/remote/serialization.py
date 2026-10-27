@@ -28,7 +28,6 @@ or a 1024^3 int16 image (~2 GiB).
 from __future__ import annotations
 
 import struct
-from typing import Optional
 
 import blosc2
 import numpy as np
@@ -52,7 +51,7 @@ _SELECT_FILTER_CROP_FRACTION = 0.25
 
 
 def _compress_all(
-    raw: memoryview, total: int, codec: blosc2.Codec, clevel: int, filters: list, nthreads: Optional[int], typesize: int
+    raw: memoryview, total: int, codec: blosc2.Codec, clevel: int, filters: list, nthreads: int | None, typesize: int
 ) -> int:
     """Compressed byte length of ``raw`` under ``filters``, chunked exactly as pack_array does."""
     extra = {} if nthreads is None else {"nthreads": nthreads}
@@ -67,7 +66,7 @@ def _compress_all(
     return size
 
 
-def _select_filter(arr: np.ndarray, codec: blosc2.Codec, clevel: int, nthreads: Optional[int]) -> "blosc2.Filter":
+def _select_filter(arr: np.ndarray, codec: blosc2.Codec, clevel: int, nthreads: int | None) -> blosc2.Filter:
     """Pick NOFILTER vs SHUFFLE for ``arr`` by trial-compressing a small centered crop.
 
     Uses ``compress2`` on the raw bytes — exactly the path pack_array takes — so the decision
@@ -100,8 +99,8 @@ def pack_array(
     arr: np.ndarray,
     codec: blosc2.Codec = blosc2.Codec.ZSTD,
     clevel: int = 3,
-    filters: Optional[list] = None,
-    nthreads: Optional[int] = None,
+    filters: list | None = None,
+    nthreads: int | None = None,
 ) -> bytes:
     """Serialize a numpy array to a self-describing compressed byte string.
 

@@ -6,19 +6,23 @@
 
 """Some wrapping utilities extended from pytorch's to support repeat factor sampling in particular"""
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import torch
 from torch.utils.data import (
     ConcatDataset as TorchConcatDataset,
+)
+from torch.utils.data import (
     Dataset,
+)
+from torch.utils.data import (
     Subset as TorchSubset,
 )
 
 
 class ConcatDataset(TorchConcatDataset):
     def __init__(self, datasets: Iterable[Dataset]) -> None:
-        super(ConcatDataset, self).__init__(datasets)
+        super().__init__(datasets)
 
         self.repeat_factors = torch.cat([d.repeat_factors for d in datasets])
 
@@ -32,7 +36,7 @@ class ConcatDataset(TorchConcatDataset):
 
 class Subset(TorchSubset):
     def __init__(self, dataset, indices) -> None:
-        super(Subset, self).__init__(dataset, indices)
+        super().__init__(dataset, indices)
 
         self.repeat_factors = dataset.repeat_factors[indices]
         assert len(indices) == len(self.repeat_factors)

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ICL volume explorer</title>
+<style>
+:root{color-scheme:dark;font:14px system-ui,sans-serif;background:#0c131e;color:#e4ebf5;--muted:#9cacc0;--line:#293647}
+*{box-sizing:border-box}body{margin:0;padding:28px;max-width:2000px;margin-inline:auto}h1{font-size:30px;margin:8px 0}h2{font-size:15px;margin:0}p{line-height:1.5}a{color:#83d4e7}
+.eyebrow{color:#75d1ce;letter-spacing:.15em;font-size:11px;font-weight:700}.muted,small{color:var(--muted)}.toolbar{display:flex;flex-wrap:wrap;gap:16px;align-items:end;padding:16px 0;border-bottom:1px solid var(--line)}
+label{display:grid;gap:6px;font-size:12px;color:var(--muted)}select,button{font:inherit;color:#e4ebf5;background:#192536;border:1px solid #3d4c60;border-radius:6px;padding:8px 10px}button{cursor:pointer}button:hover{background:#26394e}select:disabled{opacity:.5}
+input[type=range]{width:170px;accent-color:#70d0d0}output{color:#e4ebf5;font-variant-numeric:tabular-nums}.grow{flex:1;min-width:220px}.grow input{width:100%}.panels{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:20px 0}.card{background:#131e2c;border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}.card header{padding:14px;min-height:81px}.score{font-size:12px;line-height:1.5;color:var(--muted);margin-top:6px}.scene{height:240px;touch-action:none;background:#0d1622}.scene canvas{display:block;width:100%;height:100%}.slice{display:block;width:100%;height:240px;object-fit:contain;image-rendering:pixelated;background:#080e16}.card footer{padding:10px 14px;font-size:11px;color:var(--muted);min-height:48px}.legend{display:flex;flex-wrap:wrap;gap:20px;color:var(--muted);font-size:12px}.legend b{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px}.notice{padding:12px 15px;border-left:3px solid #70d0d0;background:#142331;line-height:1.5}.error{color:#ffb6a9}.details{font-size:12px;line-height:1.7;color:var(--muted)}.details summary{cursor:pointer;color:#d7e5f4}pre{white-space:pre-wrap;overflow-wrap:anywhere}#status{min-height:22px}
+@media(max-width:1100px){.panels{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){body{padding:14px}.panels{grid-template-columns:1fr}.scene,.slice{height:260px}}
+</style>
+<div class="eyebrow">NNINTERACTIVE · RESEARCH VIEWER</div>
+<h1>From prompted support to automatic segmentation</h1>
+<div id="case" class="muted">Loading embedded volumes…</div>
+<div class="toolbar">
+  <label>Target<select id="target"></select></label>
+  <label>Student<select id="method"></select></label>
+  <label>View<select id="scope"><option value="full">Reconstructed full volume</option><option value="crop">Patch of reconstructed volume</option><option value="raw">Raw window · before blending</option></select></label>
+  <label>Active supports<select id="count"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label>
+  <label>Slice plane<select id="axis"><option value="0">D · stored axis 0</option><option value="1">H · stored axis 1</option><option value="2">W · stored axis 2</option></select></label>
+  <label>Overlay opacity<input id="opacity" type="range" min="0" max="1" step=".05" value=".45"></label>
+  <button id="reset">Reset camera</button>
+</div>
+<div class="toolbar">
+  <button id="previous">Previous patch</button><button id="next">Next patch</button>
+  <label class="grow">Inference window <output id="patch-value"></output><input id="patch" type="range" min="0" step="1" value="0"></label>
+  <label class="grow">Query slice <output id="slice-value"></output><input id="slice" type="range" min="0" step="1"></label>
+  <button id="play">Play slices</button>
+</div>
+<div class="toolbar">
+  <label>Support patch<select id="support"></select></label>
+  <label>Support overlay<select id="support-overlay"><option value="prompt">Provided prompt</option><option value="prediction">Interactive prediction</option><option value="none">CT only</option></select></label>
+  <label class="grow">Support slice <output id="support-value"></output><input id="support-slice" type="range" min="0" max="191" value="96"></label>
+  <label>CT display contrast<input id="contrast" type="range" min=".5" max="3" step=".1" value="1"></label>
+</div>
+<p id="description" class="notice"></p><div id="status" role="status" aria-live="polite"></div>
+<main class="panels" id="panels"></main>
+<div class="legend"><span><b style="background:#5dd5e5"></b>Support prompt / prediction</span><span><b style="background:#a9df9a"></b>Reference</span><span><b style="background:#efa943"></b>Student</span><span><b style="background:#bd9cf3"></b>Native refinement</span><span><b style="background:#f6cf74"></b>Selected window</span><span>Gray hatching: invalid annotation / support padding</span></div>
+<p class="muted">Drag any 3D panel to rotate all views; scroll to zoom. Query slices are synchronized. Support slices are independent because the images are from different volumes.</p>
+<details class="details"><summary>Protocol, display precision and checkpoint provenance</summary>
+<p>Full-volume predictions use exhaustive 192³ windows, stride 96 with boundary coverage, and Gaussian probability blending before thresholding. Full-volume refinement uses the original frozen nnInteractive native AutoZoom engine, prompted only by the student mask. The raw-window view instead refines each 192³ window independently; these refined windows are not blended into the displayed full-volume result. Raw-window and interactive-support predictions are recorded with four supports.</p>
+<p>All slices and binary masks retain the supplied voxel grid. CT intensities are quantized to 8 bits for display using one shared percentile window; this does not change inference. Surfaces use a three-voxel tessellation step and may omit thin structures; inspect the exact mask slices for detail. Geometry is in voxel units, with stored D/H/W axes, not verified patient orientation or physical spacing. Query references are display/scoring only. Exact dense support prompts make support predictions a diagnostic, not a test of interactive generalization.</p>
+<p>These are interim checkpoints on one development volume, not a controlled final ranking. Both student and refined results are shown, including deterioration. No inference or network request is performed by this offline viewer.</p><pre id="provenance"></pre>
+</details>
+<script>__THREE__</script><script>__FFLATE__</script>
+<script id="payload" type="application/json">__DATA__</script>
+<script>
+(() => {
+  'use strict';
+  const data = JSON.parse(document.getElementById('payload').textContent);
+  document.getElementById('payload').remove();
+  const el = id => document.getElementById(id), shape = data.volumes.image.shape;
+  const colors = {support:0x5dd5e5, reference:0xa9df9a, before:0xefa943, after:0xbd9cf3};
+  const names = {backprop:'Backprop', baseline:'Baseline', kd:'KD'};
+  const cache = new Map(), views = [];
+  let method = data.methods[0], count = 4, scope = 'full', axis = 0, patch = data.default_patch, support = 0;
+  let slice = data.focus[0], supportSlice = data.support_focus[0][0], opacity = .45, contrast = 1;
+  let yaw = .6, pitch = .3, zoom = 1, timer = null, webgl = true;
+  const decode = text => fflate.gunzipSync(Uint8Array.from(atob(text), c => c.charCodeAt(0)));
+  function bytes(key) {
+    if (!cache.has(key)) {
+      if (cache.size >= 16) cache.delete(cache.keys().next().value);
+      cache.set(key, decode(data.volumes[key].data));
+    }
+    return cache.get(key);
+  }
+  function value(buffer, item, point) {
+    const n = (point[0]*item.shape[1]+point[1])*item.shape[2]+point[2];
+    return item.bits ? (buffer[n>>3] >> (n&7)) & 1 : buffer[n];
+  }
+  function world(p, dimensions) { return [p[2]-dimensions[2]/2, dimensions[0]/2-p[0], p[1]-dimensions[1]/2]; }
+  function camera(view) {
+    const radius = Math.max(...view.dimensions), fit = zoom*Math.max(1, 1/view.camera.aspect);
+    view.camera.position.set(Math.sin(yaw)*radius*2.4*fit, Math.sin(pitch)*radius*2*fit, Math.cos(yaw)*radius*2.4*fit);
+    view.camera.lookAt(0,0,0);
+  }
+  function drawScenes() { views.forEach(v => { if (v.renderer) { camera(v); v.renderer.render(v.scene,v.camera); } }); }
+  function options(id, entries) { for (const [value,label] of entries) el(id).add(new Option(label,value)); }
+  options('target',data.targets.map(t => [t,t.replaceAll('_',' ')])); el('target').value=data.target;
+  options('method',data.methods.map(m => [m,names[m]]));
+  options('support',data.support_metadata.map((m,i) => [i,`${i+1} · ${m.volume_id}`]));
+  el('case').textContent=`${data.case} · ${data.target.replaceAll('_',' ')} · ${shape.join(' × ')} voxels · ${data.origins.length} inference windows`;
+  el('patch').max=data.origins.length-1;
+  el('provenance').textContent=JSON.stringify({checkpoints:data.checkpoints, original_nninteractive_sha256:data.native_sha256, display_intensity_window:data.window, supports:data.support_metadata},null,2);
+  for (const [kind,title] of [['support','Prompted support'],['query','Unprompted query'],['reference','Reference'],['before','ICL prediction'],['after','Frozen nnInteractive']]) {
+    const card=document.createElement('section'); card.className='card'; card.dataset.kind=kind;
+    card.innerHTML=`<header><h2>${title}</h2><div class="score"></div></header><div class="scene" aria-label="${title} 3D view"></div><canvas class="slice" aria-label="${title} slice"></canvas><footer></footer>`;
+    el('panels').appendChild(card);
+    const view={kind,card,canvas:card.querySelector('.slice'),dimensions:shape,objects:[]}; views.push(view);
+    try {
+      view.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); view.renderer.localClippingEnabled=true;
+      view.renderer.setPixelRatio(Math.min(devicePixelRatio,2)); card.querySelector('.scene').appendChild(view.renderer.domElement);
+      view.scene=new THREE.Scene(); view.camera=new THREE.PerspectiveCamera(35,1,.1,10000);
+      view.scene.add(new THREE.AmbientLight(0xffffff,2));
+      const light=new THREE.DirectionalLight(0xffffff,2.5);light.position.set(400,600,500);view.scene.add(light);
+      new ResizeObserver(() => {
+        const box=card.querySelector('.scene');view.renderer.setSize(box.clientWidth,box.clientHeight,false);
+        view.camera.aspect=box.clientWidth/box.clientHeight;view.camera.updateProjectionMatrix();drawScenes();
+      }).observe(card.querySelector('.scene'));
+      let drag=null;const canvas=view.renderer.domElement;
+      canvas.onpointerdown=e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};
+      canvas.onpointermove=e=>{if(!drag)return;yaw+=(e.clientX-drag[0])*.008;pitch=Math.max(-1.2,Math.min(1.2,pitch+(e.clientY-drag[1])*.008));drag=[e.clientX,e.clientY];drawScenes();};
+      canvas.onpointerup=canvas.onpointercancel=()=>{drag=null;};
+      canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.4,Math.min(3,zoom*Math.exp(e.deltaY*.001)));drawScenes();},{passive:false});
+    } catch(error) {webgl=false;card.querySelector('.scene').textContent='3D unavailable in this browser; exact slices remain available.';}
+  }
+  function dispose(view) {
+    if (!view.renderer) return;
+    for(const object of view.objects){view.scene.remove(object);object.geometry.dispose();object.material.map?.dispose();object.material.dispose();}
+    view.objects=[];
+  }
+  function add(view,object){view.scene.add(object);view.objects.push(object);return object;}
+  function configure(view) {
+    const isSupport=view.kind==='support', cropped=scope!=='full';
+    view.dimensions=isSupport||cropped?[192,192,192]:shape;
+    view.origin=isSupport||!cropped?[0,0,0]:data.origins[patch];
+    view.imageKey=isSupport?`support_image_${support}`:'image';
+    view.validKey=isSupport?`support_valid_${support}`:'valid';
+    const fullKey=`${method}${view.kind==='after'?'_autozoom':''}_k${count}`;
+    const rawKey=`${method}_${view.kind}_p${patch}`;
+    view.maskKey=isSupport?(el('support-overlay').value==='none'?null:el('support-overlay').value==='prompt'?`support_prompt_${support}`:`${method}_support_${support}`):view.kind==='query'?null:view.kind==='reference'?'reference':scope==='raw'?rawKey:fullKey;
+    view.maskOrigin=scope==='raw'&&!isSupport&&['before','after'].includes(view.kind)?[0,0,0]:view.origin;
+    dispose(view);if(!view.renderer)return;
+    if(view.maskKey && data.volumes[view.maskKey].mesh) {
+      const mesh=data.volumes[view.maskKey].mesh, vertices=new Float32Array(decode(mesh.vertices).buffer), faces=new Uint32Array(decode(mesh.faces).buffer);
+      for(let n=0;n<vertices.length;n+=3){const p=[0,1,2].map(i=>vertices[n+i]-view.maskOrigin[i]);vertices.set(world(p,view.dimensions),n);}
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(vertices,3));geometry.setIndex(new THREE.BufferAttribute(faces,1));geometry.computeVertexNormals();
+      const limits=[view.dimensions[2],view.dimensions[0],view.dimensions[1]].map(n=>n/2);
+      const clippingPlanes=[];for(let i=0;i<3;i++)for(const sign of [-1,1]){const normal=new THREE.Vector3();normal.setComponent(i,sign);clippingPlanes.push(new THREE.Plane(normal,limits[i]));}
+      add(view,new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:colors[view.kind],roughness:.8,side:THREE.DoubleSide,clippingPlanes,transparent:true,opacity:.8})));
+    }
+    const texture=new THREE.CanvasTexture(view.canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.magFilter=THREE.NearestFilter;
+    view.plane=add(view,new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,transparent:true,opacity:.65,depthWrite:false})));
+    if(!isSupport&&scope==='full') {
+      const box=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(192,192,192)),new THREE.LineBasicMaterial({color:0xf6cf74}));
+      box.position.set(...world(data.origins[patch].map(n=>n+96),shape));add(view,box);
+    }
+  }
+  function drawSlice(view) {
+    const isSupport=view.kind==='support', position=isSupport?supportSlice:slice, other=[0,1,2].filter(i=>i!==axis);
+    const height=view.dimensions[other[0]], width=view.dimensions[other[1]];
+    const canvas=view.canvas;canvas.width=width;canvas.height=height;
+    const context=canvas.getContext('2d'), frame=context.createImageData(width,height);
+    const image=bytes(view.imageKey), imageItem=data.volumes[view.imageKey], valid=bytes(view.validKey), validItem=data.volumes[view.validKey];
+    const mask=view.maskKey?bytes(view.maskKey):null, maskItem=data.volumes[view.maskKey];
+    const color=colors[view.kind]||0xffffff, rgb=[color>>16,(color>>8)&255,color&255];
+    for(let row=0;row<height;row++)for(let col=0;col<width;col++) {
+      const p=[0,0,0];p[axis]=position;p[other[0]]=row;p[other[1]]=col;
+      const imagePoint=p.map((n,i)=>n+view.origin[i]);
+      const gray=Math.max(0,Math.min(255,(value(image,imageItem,imagePoint)-127.5)*contrast+127.5));
+      let pixel=[gray,gray,gray];
+      if(mask&&value(mask,maskItem,p.map((n,i)=>n+view.maskOrigin[i])))pixel=rgb.map(c=>c*opacity+gray*(1-opacity));
+      if(!value(valid,validItem,imagePoint)&&(row+col)%8<3)pixel=[130,145,162];
+      frame.data.set([...pixel,255],4*(row*width+col));
+    }
+    context.putImageData(frame,0,0);
+    if(!isSupport&&scope==='full'&&position>=data.origins[patch][axis]&&position<data.origins[patch][axis]+192) {
+      context.strokeStyle='#f6cf74';context.lineWidth=1.5;context.strokeRect(data.origins[patch][other[1]],data.origins[patch][other[0]],192,192);
+    }
+    view.card.querySelector('footer').textContent=isSupport?`Support voxel ${['D','H','W'][axis]}=${position} · ${support<count?'active context':'not used at this support count'}`:`Query voxel ${['D','H','W'][axis]}=${position+view.origin[axis]} · ${scope==='full'?'full grid':'192³ patch'}`;
+    if(view.renderer) {
+      const corners=[[0,0],[width,0],[width,height],[0,height]].map(([x,y])=>{const p=[0,0,0];p[axis]=position+.5;p[other[0]]=y;p[other[1]]=x;return world(p,view.dimensions);});
+      view.plane.geometry.setAttribute('position',new THREE.Float32BufferAttribute(corners.flat(),3));view.plane.geometry.setAttribute('uv',new THREE.Float32BufferAttribute([0,1,1,1,1,0,0,0],2));view.plane.geometry.setIndex([0,1,2,0,2,3]);view.plane.material.map.needsUpdate=true;
+    }
+  }
+  function captions() {
+    const origin=data.origins[patch], description=scope==='raw'?'Independent 192³ student prediction and native AutoZoom refinement of this window. Four prompted supports; no blending.':scope==='crop'?'Cropped views of the completed reconstruction and its full-volume AutoZoom result. These are not independent window predictions.':'Completed Gaussian-blended student reconstruction, then native AutoZoom refinement of the full volume.';
+    el('description').textContent=description;
+    el('patch-value').textContent=`${patch+1} / ${data.origins.length} · origin [${origin.join(', ')}]`;
+    el('slice-value').textContent=`${slice} / ${(scope==='full'?shape[axis]:192)-1}`;
+    el('support-value').textContent=`${supportSlice} / 191`;
+    for(const view of views) {
+      let text='Zero query prompt channels';
+      if(view.kind==='support')text=`${data.support_metadata[support].volume_id} · ${el('support-overlay').selectedOptions[0].textContent}`;
+      else if(view.kind==='reference')text='Display and scoring only';
+      else if(['before','after'].includes(view.kind)) {
+        const record=scope==='raw'?data.patch_metrics[method].patches[patch][view.kind]:data.metrics[`${method}${view.kind==='after'?'_autozoom':''}_k${count}`];
+        text=`${scope==='raw'?'Window':'Full-volume'} Dice ${record.dice===null?'n/a':record.dice.toFixed(3)} · ${view.kind==='before'?`update ${data.checkpoints[method].update}`:'native AutoZoom'}`;
+      }
+      view.card.querySelector('.score').textContent=text;
+    }
+  }
+  function redraw(rebuild=false) {
+    el('slice').max=(scope==='full'?shape[axis]:192)-1;slice=Math.min(slice,Number(el('slice').max));el('slice').value=slice;
+    el('count').disabled=scope==='raw';el('count').value=count;el('patch').value=patch;
+    if(rebuild)views.forEach(configure);
+    views.forEach(drawSlice);captions();drawScenes();
+    el('status').textContent=webgl?'':'3D is unavailable; slice comparison is fully functional.';
+    document.body.dataset.ready='true';
+  }
+  function stop(){clearInterval(timer);timer=null;el('play').textContent='Play slices';}
+  function patchChange(value){patch=Math.max(0,Math.min(data.origins.length-1,value));slice=scope==='full'?Math.min(shape[axis]-1,data.origins[patch][axis]+96):96;redraw(true);}
+  function bind(id,event,action){el(id).addEventListener(event,()=>{try{action();}catch(error){el('status').textContent=error.message;el('status').className='error';throw error;}});}
+  bind('method','change',()=>{method=el('method').value;redraw(true);});
+  bind('target','change',()=>{location.href=el('target').value+'.html';});
+  bind('scope','change',()=>{stop();scope=el('scope').value;if(scope==='raw')count=4;patchChange(patch);});
+  bind('count','change',()=>{count=Number(el('count').value);redraw(true);});
+  bind('axis','change',()=>{axis=Number(el('axis').value);slice=scope==='full'?data.focus[axis]:96;supportSlice=data.support_focus[support][axis];el('support-slice').value=supportSlice;redraw(true);});
+  bind('patch','input',()=>{stop();patchChange(Number(el('patch').value));});
+  bind('previous','click',()=>{stop();patchChange(patch-1);});bind('next','click',()=>{stop();patchChange(patch+1);});
+  bind('slice','input',()=>{stop();slice=Number(el('slice').value);redraw();});
+  bind('support','change',()=>{support=Number(el('support').value);supportSlice=data.support_focus[support][axis];el('support-slice').value=supportSlice;redraw(true);});
+  bind('support-overlay','change',()=>redraw(true));
+  bind('support-slice','input',()=>{supportSlice=Number(el('support-slice').value);redraw();});
+  bind('opacity','input',()=>{opacity=Number(el('opacity').value);redraw();});
+  bind('contrast','input',()=>{contrast=Number(el('contrast').value);redraw();});
+  bind('reset','click',()=>{yaw=.6;pitch=.3;zoom=1;drawScenes();});
+  bind('play','click',()=>{if(timer){stop();return;}el('play').textContent='Pause slices';timer=setInterval(()=>{slice=(slice+1)%(Number(el('slice').max)+1);redraw();},180);});
+  el('support-slice').value=supportSlice;
+  try{redraw(true);}catch(error){el('status').textContent=error.message;el('status').className='error';throw error;}
+})();
+</script>
+</html>

@@ -1,19 +1,18 @@
-import pandas as pd
-import numpy as np
 import math
-import pickle as pkl
-import os
-from tqdm import tqdm
-
-from reader import BloscReaderWriter
-from typing import List, Tuple, Union
 import multiprocessing as mp
+import os
+import pickle as pkl
 from functools import partial
+
+import numpy as np
+import pandas as pd
+from reader import BloscReaderWriter
+from tqdm import tqdm
 
 
 def sample_foreground_locations(
     seg: np.ndarray,
-    classes_or_regions: Union[List[int], List[Tuple[int, ...]]],
+    classes_or_regions: list[int] | list[tuple[int, ...]],
     seed: int = 1234,
     verbose: bool = False,
 ):

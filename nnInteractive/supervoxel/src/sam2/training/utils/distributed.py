@@ -12,11 +12,12 @@ import os
 import random
 import tempfile
 import time
-from typing import Any, Callable, List, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import torch
-import torch.autograd as autograd
 import torch.distributed as dist
+from torch import autograd
 
 # Default to GPU 0
 _cuda_device_index: int = 0
@@ -26,7 +27,7 @@ _CPU_DEVICE_INDEX = -1
 _PRIMARY_RANK = 0
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _get_global_gloo_group():
     """
     Return a process group based on gloo backend, containing all the ranks
@@ -176,7 +177,7 @@ def all_gather(data, force_cpu=False, force_filesys=False, filesys_save_dir=None
     return data_list
 
 
-def convert_to_distributed_tensor(tensor: torch.Tensor) -> Tuple[torch.Tensor, str]:
+def convert_to_distributed_tensor(tensor: torch.Tensor) -> tuple[torch.Tensor, str]:
     """
     For some backends, such as NCCL, communication only works if the
     tensor is on the GPU. This helper function converts to the correct
@@ -276,7 +277,7 @@ def all_reduce_op(
     return tensor
 
 
-def gather_tensors_from_all(tensor: torch.Tensor) -> List[torch.Tensor]:
+def gather_tensors_from_all(tensor: torch.Tensor) -> list[torch.Tensor]:
     """
     Wrapper over torch.distributed.all_gather for performing
     'gather' of 'tensor' over all processes in both distributed /
@@ -446,7 +447,7 @@ def all_gather_tensor(tensor: torch.Tensor, world_size=None):
     return tensor_all
 
 
-def all_gather_batch(tensors: List[torch.Tensor]):
+def all_gather_batch(tensors: list[torch.Tensor]):
     """
     Performs all_gather operation on the provided tensors.
     """

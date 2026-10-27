@@ -29,7 +29,6 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional
 
 # Canonical Hugging Face location of the official checkpoints. The repo id can be
 # overridden via NNINTERACTIVE_REPO_ID (handy for testing against a staging repo).
@@ -85,7 +84,7 @@ def _validate_and_normalize_manifest(manifest: dict) -> dict:
     if not isinstance(raw_models, list):
         raise ValueError("models.json 'models' must be a list")
 
-    valid: List[dict] = []
+    valid: list[dict] = []
     seen_ids = set()
     default_seen = False
     for entry in raw_models:
@@ -143,7 +142,7 @@ def _load_cached_manifest(model_root: Path) -> dict:
         return json.load(f)
 
 
-def load_model_manifest(model_root: Optional[Path] = None) -> dict:
+def load_model_manifest(model_root: Path | None = None) -> dict:
     """Load the (validated, normalized) model manifest.
 
     Remote-first: try to refresh from Hugging Face and cache the result locally.
@@ -170,7 +169,7 @@ def load_model_manifest(model_root: Optional[Path] = None) -> dict:
         ) from remote_exc
 
 
-def get_default_model_id(model_root: Optional[Path] = None, manifest: Optional[dict] = None) -> str:
+def get_default_model_id(model_root: Path | None = None, manifest: dict | None = None) -> str:
     """Return the id of the manifest's default model."""
     manifest = manifest or load_model_manifest(model_root)
     for entry in manifest["models"]:
@@ -179,7 +178,7 @@ def get_default_model_id(model_root: Optional[Path] = None, manifest: Optional[d
     return manifest["models"][0]["id"]
 
 
-def _find_entry(manifest: dict, model_id: str) -> Optional[dict]:
+def _find_entry(manifest: dict, model_id: str) -> dict | None:
     for entry in manifest["models"]:
         if entry["id"] == model_id:
             return entry
@@ -198,20 +197,20 @@ def _download_unavailable_msg(model_id: str) -> str:
     )
 
 
-def is_model_downloaded(model_id: str, model_root: Optional[Path] = None) -> bool:
+def is_model_downloaded(model_id: str, model_root: Path | None = None) -> bool:
     """True if ``<model_root>/models/<model_id>/`` exists and is non-empty."""
     model_root = model_root or get_model_root_dir()
     local_model_dir = _models_dir(model_root) / model_id
     return local_model_dir.is_dir() and any(local_model_dir.iterdir())
 
 
-def get_local_model_dir(model_id: str, model_root: Optional[Path] = None) -> Path:
+def get_local_model_dir(model_id: str, model_root: Path | None = None) -> Path:
     """Path where ``model_id`` lives (or would live) locally."""
     model_root = model_root or get_model_root_dir()
     return _models_dir(model_root) / model_id
 
 
-def ensure_model_available(model_id: str, model_root: Optional[Path] = None, manifest: Optional[dict] = None) -> Path:
+def ensure_model_available(model_id: str, model_root: Path | None = None, manifest: dict | None = None) -> Path:
     """Make ``model_id`` available locally and return its directory.
 
     Reuses an already-downloaded model without re-downloading. If the model is
@@ -268,7 +267,7 @@ def ensure_model_available(model_id: str, model_root: Optional[Path] = None, man
     return local_model_dir
 
 
-def list_models(model_root: Optional[Path] = None) -> List[dict]:
+def list_models(model_root: Path | None = None) -> list[dict]:
     """Return manifest entries enriched with local availability.
 
     Each dict carries the manifest fields plus ``downloaded`` (bool) and
@@ -277,7 +276,7 @@ def list_models(model_root: Optional[Path] = None) -> List[dict]:
     """
     model_root = model_root or get_model_root_dir()
     manifest = load_model_manifest(model_root)
-    models: List[dict] = []
+    models: list[dict] = []
     for entry in manifest["models"]:
         downloaded = is_model_downloaded(entry["id"], model_root)
         models.append(
@@ -293,7 +292,7 @@ def list_models(model_root: Optional[Path] = None) -> List[dict]:
 # --------------------------------------------------------------------------- #
 # CLI entry points (registered in pyproject.toml [project.scripts])
 # --------------------------------------------------------------------------- #
-def _resolve_root_arg(model_dir: Optional[str]) -> Path:
+def _resolve_root_arg(model_dir: str | None) -> Path:
     return Path(model_dir).expanduser().resolve() if model_dir else get_model_root_dir()
 
 

@@ -118,3 +118,44 @@ ENV/
 
 CLAUDE.md
 AGENTS.md
+# Local experiment archives and generated outputs are not publishable source.
+/.local_artifacts/
+/ISBI_paper/
+**/results/
+**/outputs/
+**/artifacts/
+**/logs/
+.pytest_cache/
+.ruff_cache/
+*.pt
+*.pth
+*.tar.gz
+
+# Local research material and cluster-specific launchers.
+/ISBI/
+/figures/
+/documentation/automatic_technical.md
+/scripts/automatic/
+/submit_train.sh
+/submit_supervoxels.sh
+/submit_totalseg.sh
+/visualization/render_figures.py
+/examples/automatic/backprop.json
+/examples/automatic/baseline.json
+/examples/automatic/baseline_full_volume.json
+/examples/automatic/baseline_full_volume_mask_encoder.json
+/examples/automatic/coarse.json
+/examples/automatic/kd.json
+/tests/automatic/test_submit.py
+/tests/automatic/test_submit_totalseg.py
+/tests/automatic/test_prototype_shared.py
+/tests/automatic/test_attention_map.py
+/tests/automatic/test_btcv_paper.py
+/tests/automatic/test_figure_export.py
+/tests/automatic/test_isbi_study.py
+/tests/automatic/test_method_comparison.py
+/tm.json
+
+# Local validation and visualization tools are not part of the public release.
+/tests/
+/visualization/

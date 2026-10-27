@@ -11,10 +11,8 @@ Mostly copy-paste from torchvision references.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
 
 import torch
-
 from PIL import Image as PILImage
 from tensordict import tensorclass
 
@@ -93,26 +91,26 @@ class Object:
     object_id: int
     # Index of the frame in the media (0 if single image)
     frame_index: int
-    segment: Union[torch.Tensor, dict]  # RLE dict or binary mask
+    segment: torch.Tensor | dict  # RLE dict or binary mask
 
 
 @dataclass
 class Frame:
-    data: Union[torch.Tensor, PILImage.Image]
-    objects: List[Object]
+    data: torch.Tensor | PILImage.Image
+    objects: list[Object]
 
 
 @dataclass
 class VideoDatapoint:
     """Refers to an image/video and all its annotations"""
 
-    frames: List[Frame]
+    frames: list[Frame]
     video_id: int
-    size: Tuple[int, int]
+    size: tuple[int, int]
 
 
 def collate_fn(
-    batch: List[VideoDatapoint],
+    batch: list[VideoDatapoint],
     dict_key,
 ) -> BatchedVideoDatapoint:
     """

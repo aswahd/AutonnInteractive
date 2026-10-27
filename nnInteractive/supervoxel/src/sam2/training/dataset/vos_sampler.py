@@ -6,7 +6,6 @@
 
 import random
 from dataclasses import dataclass
-from typing import List
 
 from training.dataset.vos_segment_loader import LazySegments
 
@@ -15,8 +14,8 @@ MAX_RETRIES = 1000
 
 @dataclass
 class SampledFramesAndObjects:
-    frames: List[int]
-    object_ids: List[int]
+    frames: list[int]
+    object_ids: list[int]
 
 
 class VOSSampler:

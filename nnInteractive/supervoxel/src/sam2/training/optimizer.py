@@ -8,27 +8,15 @@ import fnmatch
 import inspect
 import itertools
 import logging
-import types
+from collections.abc import Callable, Iterable, Mapping
 from typing import (
     Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
 )
 
 import hydra
-
 import torch
-import torch.nn as nn
 from omegaconf import DictConfig
-from torch import Tensor
+from torch import Tensor, nn
 
 
 class Optimizer:
@@ -74,7 +62,7 @@ class Optimizer:
         return self.optimizer.zero_grad(*args, **kwargs)
 
 
-def set_default_parameters(scheduler_cfgs: List[DictConfig], all_parameter_names: Set[str]) -> None:
+def set_default_parameters(scheduler_cfgs: list[DictConfig], all_parameter_names: set[str]) -> None:
     """Set up the "default" scheduler with the right parameters.
 
     Args:
@@ -105,8 +93,8 @@ def set_default_parameters(scheduler_cfgs: List[DictConfig], all_parameter_names
 
 
 def name_constraints_to_parameters(
-    param_constraints: List[Set[str]], named_parameters: Dict[str, Tensor]
-) -> List[torch.nn.Parameter]:
+    param_constraints: list[set[str]], named_parameters: dict[str, Tensor]
+) -> list[torch.nn.Parameter]:
     """Return parameters which match the intersection of parameter constraints.
 
     Note that this returns the parameters themselves, not their names.
@@ -124,9 +112,9 @@ def name_constraints_to_parameters(
 
 
 def map_scheduler_cfgs_to_param_groups(
-    all_scheduler_cfgs: Iterable[List[Dict]],
-    named_parameters: Dict[str, Tensor],
-) -> Tuple[List[Dict[Any, Any]], List[Dict[str, List[torch.nn.Parameter]]]]:
+    all_scheduler_cfgs: Iterable[list[dict]],
+    named_parameters: dict[str, Tensor],
+) -> tuple[list[dict[Any, Any]], list[dict[str, list[torch.nn.Parameter]]]]:
     """Produce parameter groups corresponding to all the scheduler configs.
 
     Takes all the scheduler configs, each of which applies to a specific optimizer
@@ -160,7 +148,7 @@ def map_scheduler_cfgs_to_param_groups(
     return schedulers, param_groups
 
 
-def validate_param_group_params(param_groups: List[Dict], model: nn.Module):
+def validate_param_group_params(param_groups: list[dict], model: nn.Module):
     """Check that the param groups are non-overlapping and cover all the parameters.
 
     Args:
@@ -183,9 +171,9 @@ def validate_param_group_params(param_groups: List[Dict], model: nn.Module):
 
 
 def unix_module_cls_pattern_to_parameter_names(
-    filter_module_cls_names: List[str],
-    module_cls_to_param_names: Dict[Type, str],
-) -> Union[None, Set[str]]:
+    filter_module_cls_names: list[str],
+    module_cls_to_param_names: dict[type, str],
+) -> None | set[str]:
     """Returns param names which pass the filters specified in filter_module_cls_names.
 
     Args:
@@ -211,9 +199,9 @@ def unix_module_cls_pattern_to_parameter_names(
 
 
 def unix_param_pattern_to_parameter_names(
-    filter_param_names: Optional[List[str]],
-    parameter_names: Dict[str, torch.Tensor],
-) -> Union[None, Set[str]]:
+    filter_param_names: list[str] | None,
+    parameter_names: dict[str, torch.Tensor],
+) -> None | set[str]:
     """Returns param names which pass the filters specified in filter_param_names.
 
     Args:
@@ -236,9 +224,9 @@ def unix_param_pattern_to_parameter_names(
 
 def _unix_pattern_to_parameter_names(
     scheduler_cfg: DictConfig,
-    parameter_names: Set[str],
-    module_cls_to_param_names: Dict[Type, str],
-) -> Union[None, Set[str]]:
+    parameter_names: set[str],
+    module_cls_to_param_names: dict[type, str],
+) -> None | set[str]:
     """Returns param names which pass the filters specified in scheduler_cfg.
 
     Args:
@@ -252,7 +240,7 @@ def _unix_pattern_to_parameter_names(
     )
 
 
-def get_module_cls_to_param_names(model: nn.Module, param_allowlist: Set[str] = None) -> Dict[Type, str]:
+def get_module_cls_to_param_names(model: nn.Module, param_allowlist: set[str] = None) -> dict[type, str]:
     """Produce a mapping from all the modules classes to the names of parames they own.
 
     Only counts a parameter as part of the immediate parent module, i.e. recursive
@@ -277,9 +265,9 @@ def get_module_cls_to_param_names(model: nn.Module, param_allowlist: Set[str] = 
 def construct_optimizer(
     model: torch.nn.Module,
     optimizer_conf: Any,
-    options_conf: Mapping[str, List] = None,
-    param_group_modifiers_conf: List[Callable] = None,
-    param_allowlist: Optional[Set[str]] = None,
+    options_conf: Mapping[str, list] = None,
+    param_group_modifiers_conf: list[Callable] = None,
+    param_allowlist: set[str] | None = None,
     validate_param_groups=True,
 ) -> Optimizer:
     """
@@ -384,13 +372,13 @@ def rgetattr(obj, rattrs: str = None):
 
 
 def layer_decay_param_modifier(
-    scheduler_cfgs: List[List[Dict]],
+    scheduler_cfgs: list[list[dict]],
     model,
     layer_decay_value: float,
-    layer_decay_min: Optional[float] = None,
-    apply_to: Optional[str] = None,
-    overrides: List[Dict] = (),
-) -> List[List[Dict]]:
+    layer_decay_min: float | None = None,
+    apply_to: str | None = None,
+    overrides: list[dict] = (),
+) -> list[list[dict]]:
     """
     Args
     - scheduler_cfgs: a list of omegaconf.ListConfigs.

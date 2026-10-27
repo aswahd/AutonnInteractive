@@ -1,12 +1,13 @@
-import os
-import yaml
 import argparse
-import numpy as np
-from supervoxel import SuperVoxelGenerator
-from metadata import generate_fg_locations
-from tqdm import tqdm
-import torch
 import gc
+import os
+
+import numpy as np
+import torch
+import yaml
+from metadata import generate_fg_locations
+from supervoxel import SuperVoxelGenerator
+from tqdm import tqdm
 
 
 def run(input_folder: str, output_folder: str, config: str):

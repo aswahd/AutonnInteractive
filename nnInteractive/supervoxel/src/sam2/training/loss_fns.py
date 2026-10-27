@@ -5,15 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 from collections import defaultdict
-from typing import Dict, List
 
 import torch
 import torch.distributed
-import torch.nn as nn
 import torch.nn.functional as F
-
+from torch import nn
 from training.trainer import CORE_LOSS_KEY
-
 from training.utils.distributed import get_world_size, is_dist_avail_and_initialized
 
 
@@ -162,7 +159,7 @@ class MultiStepMultiMasksAndIous(nn.Module):
         self.iou_use_l1_loss = iou_use_l1_loss
         self.pred_obj_scores = pred_obj_scores
 
-    def forward(self, outs_batch: List[Dict], targets_batch: torch.Tensor):
+    def forward(self, outs_batch: list[dict], targets_batch: torch.Tensor):
         assert len(outs_batch) == len(targets_batch)
         num_objects = torch.tensor(
             (targets_batch.shape[1]), device=targets_batch.device, dtype=torch.float
@@ -179,7 +176,7 @@ class MultiStepMultiMasksAndIous(nn.Module):
 
         return losses
 
-    def _forward(self, outputs: Dict, targets: torch.Tensor, num_objects):
+    def _forward(self, outputs: dict, targets: torch.Tensor, num_objects):
         """
         Compute the losses related to the masks: the focal loss and the dice loss.
         and also the MAE or MSE loss between predicted IoUs and actual IoUs.

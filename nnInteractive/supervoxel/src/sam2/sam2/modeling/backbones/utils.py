@@ -6,11 +6,10 @@
 
 """Some utilities for backbones, in particular for windowing"""
 
-from typing import Tuple
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 def window_partition(x, window_size):
@@ -65,9 +64,9 @@ class PatchEmbed(nn.Module):
 
     def __init__(
         self,
-        kernel_size: Tuple[int, ...] = (7, 7),
-        stride: Tuple[int, ...] = (4, 4),
-        padding: Tuple[int, ...] = (3, 3),
+        kernel_size: tuple[int, ...] = (7, 7),
+        stride: tuple[int, ...] = (4, 4),
+        padding: tuple[int, ...] = (3, 3),
         in_chans: int = 3,
         embed_dim: int = 768,
     ):

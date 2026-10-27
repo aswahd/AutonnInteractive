@@ -1,0 +1,71 @@
+{
+  "checkpoint_dir": "/path/to/nnInteractive_v1.0",
+  "checkpoint_fold": "0",
+  "data_manifest": "/path/to/totalsegmentator/real_manifest.json",
+  "supervoxel_manifest": "/path/to/generated_supervoxels/manifest.json",
+  "training": {
+    "seed": 20261029,
+    "updates": 150000,
+    "support_count": 4,
+    "supervoxel_probability": 0.2,
+    "sample_positive_queries": true,
+    "spatial_sampling": {
+      "full_volume_probability": 0.30,
+      "targeted_probability_given_patch": 0.50,
+      "target_crop_scale_range": [0.30, 1.00],
+      "hard_negative_probability_given_random_query_patch": 0.50
+    },
+    "microbatch": 2,
+    "effective_batch": 8,
+    "backbone_lr": 0.0001,
+    "context_lr": 0.001,
+    "warmup_updates": 1000,
+    "num_workers": 12,
+    "worker_backend": "process",
+    "prefetch_factor": 2,
+    "pin_memory": true,
+    "checkpoint_every": 250,
+    "validation_targets": ["liver", "spleen", "stomach", "pancreas", "kidney_left", "heart", "lung_lower_lobe_left", "aorta"],
+    "supervise_supports": false,
+    "lambda_support": 0,
+    "prompt_probabilities": {
+      "dense_mask": 1.0,
+      "point": 0.0,
+      "scribble": 0.0,
+      "box": 0.0,
+      "lasso": 0.0
+    },
+    "spatial_augmentation": {
+      "probability": 1.0,
+      "rotation_degrees": 35,
+      "scale_min": 0.7,
+      "scale_max": 1.4,
+      "flip_probability": 0.5,
+      "anisotropic_scale": true,
+      "translation_fraction": 0.15,
+      "elastic_displacement_mm": 8,
+      "elastic_grid_size": 5
+    }
+  },
+  "model": {
+    "patch_size": [192, 192, 192],
+    "context_patch_size": [192, 192, 192],
+    "student_input_size": [192, 192, 192],
+    "full_volume": false,
+    "fixed_support_crop": true,
+    "support_mask_context": true,
+    "support_mask_attention": false,
+    "query_deep_supervision": true,
+    "stages": [-3, -2, -1],
+    "attention_depth": 4,
+    "support_encoder_chunk_size": 4,
+    "activation_checkpointing": false,
+    "require_nonempty_support_masks": true,
+    "convert_dense_support_masks": false
+  },
+  "full_volume_prompt_type": "dense_mask",
+  "performance": {
+    "cpu_threads": 1,
+    "ram_cache": false
+  }
+}
