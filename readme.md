@@ -2,6 +2,8 @@
 
 **Automatic 3D CT segmentation from annotated examples.**
 
+[**Project page →**](https://aswahd.github.io/AutonnInteractive/) — See the workflow from sparse prompts to a labeled dataset.
+
 Auto nnInteractive adapts [nnInteractive](https://github.com/MIC-DKFZ/nnInteractive) to segment a new scan from a small set of annotated support scans. Their masks define the target; the query needs no clicks or boxes. Reuse the same supports across queries without retraining, or supply different masks to request another structure.
 
 | Pretrained model | Training data |
