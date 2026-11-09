@@ -3,8 +3,8 @@
 import argparse
 import importlib
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def main():
@@ -30,9 +30,7 @@ def main():
     }
     if args.command in delegates:
         sys.argv = [sys.argv[0], *remaining]
-        return importlib.import_module(
-            "." + delegates[args.command], __package__
-        ).main()
+        return importlib.import_module("." + delegates[args.command], __package__).main()
     command = argparse.ArgumentParser(prog=f"nninteractive-automatic {args.command}")
     command.add_argument("--output", type=Path, required=True)
     if args.command == "prepare":
@@ -53,9 +51,7 @@ def main():
             json.loads(args.split.read_text()) if args.split else None,
         )
     command.add_argument("--checkpoint", type=Path, required=True)
-    command.add_argument(
-        "--query", type=Path, required=True, help="Preprocessed 1DHW .npy image"
-    )
+    command.add_argument("--query", type=Path, required=True, help="Preprocessed 1DHW .npy image")
     command.add_argument(
         "--supports",
         type=Path,
@@ -63,19 +59,20 @@ def main():
         help=".npz with images=K1DHW and prompts=K7DHW",
     )
     command.add_argument("--device", default="cuda")
-    command.add_argument(
-        "--refinement", choices=["none", "resized_context", "autozoom"], default="none"
-    )
+    command.add_argument("--refinement", choices=["none", "resized_context", "autozoom"], default="autozoom")
+    command.add_argument("--support-context", type=int, default=384, help="Foreground-centered support crop size")
+    command.add_argument("--sliding-window", action="store_true", help="Use the checkpoint's query window size")
     command.add_argument("--original-model-dir", type=Path)
     args = command.parse_args(remaining)
     import numpy as np
+
     from .session import AutomaticSegmentationSession
 
     session = AutomaticSegmentationSession(
-        args.checkpoint, args.device, args.original_model_dir
+        args.checkpoint, args.device, args.original_model_dir, full_volume=not args.sliding_window
     )
     with np.load(args.supports) as bank:
-        session.set_context(bank["images"], bank["prompts"])
+        session.set_context(bank["images"], bank["prompts"], support_context=args.support_context)
     result = session.predict(np.load(args.query), refinement=args.refinement)
     arrays = {"mask": result.mask}
     if result.probabilities is not None:

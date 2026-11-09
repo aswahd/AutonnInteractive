@@ -1,22 +1,20 @@
 # Auto nnInteractive
 
-**Automatic 3D medical image segmentation from annotated examples.**
+**Automatic 3D CT segmentation from annotated examples.**
 
-Auto nnInteractive adapts [nnInteractive](https://github.com/MIC-DKFZ/nnInteractive) to segment a new scan from a small set of annotated support scans. The supports specify the target; the query needs no clicks, boxes, or other manual prompts. Reuse the same supports across queries without updating model parameters.
+Auto nnInteractive adapts [nnInteractive](https://github.com/MIC-DKFZ/nnInteractive) to segment a new scan from a small set of annotated support scans. Their masks define the target; the query needs no clicks or boxes. Reuse the same supports across queries without retraining, or supply different masks to request another structure.
 
-## How it works
+| Pretrained model | Training data |
+|---|---|
+| [TotalSegmentator-ICL.pt](https://drive.google.com/file/d/10e9a8rOpMxN4z3JZes8LlOi5CJUD3grB/view?usp=sharing) | TotalSegmentator CT |
 
-1. **Define the target with examples.** Supply support CT volumes and masks for the same structure.
-2. **Transfer the target to a query.** Multiscale cross-attention conditions the query features on the annotated supports, producing a binary segmentation.
-3. **Refine the prediction.** Optionally pass the predicted mask to a frozen original nnInteractive model using its native AutoZoom engine.
+![Four annotated support scans define a target for automatic segmentation of new queries](imgs/automatic_overview.png)
 
-The model retains nnInteractive's 3D encoder and decoder. Attention operates at three encoder scales, with configurable attention depth. The repository supports flat attention and **hierarchical attention with learned support aggregation**, along with 3D rotary position encoding (RoPE) and interleaved query conditioning. Architecture settings are saved in each checkpoint.
-
-Training uses annotated anatomical structures and optional generated regions. Context dropout trains the model to use different numbers of supports. One request segments one target; supply another support mask set to request a different structure.
+Four support scans and their masks (blue) define each target. Auto nnInteractive predicts masks (red) on new scans. Examples show liver, spleen, left kidney, and pancreas from AbdomenAtlas.
 
 ## Installation
 
-Use Python 3.10+ and a PyTorch installation appropriate for your hardware. CUDA is used for GPU training and inference. Install this repository from source to use its automatic segmentation module:
+Use Python 3.10+ and install PyTorch for your hardware. CUDA is recommended for inference and training.
 
 ```bash
 git clone https://github.com/aswahd/AutonnInteractive.git
@@ -27,74 +25,99 @@ pip install -e ./client
 pip install -e .
 ```
 
-Install the client first: the repository builds two distributions sharing the `nnInteractive` namespace, and the full package depends on the client.
+Install the client first: the client and full package share the `nnInteractive` namespace.
 
-**A trained Auto nnInteractive checkpoint is required.** Original nnInteractive weights initialize the backbone and provide optional refinement; they do not contain the learned support-attention modules. The examples below use placeholder paths to your trained checkpoint and prepared arrays.
+## Download the models
 
-## Automatic inference
+Save the released **TotalSegmentator-ICL.pt** checkpoint linked above to `checkpoints/TotalSegmentator-ICL.pt`. Its architecture and learned support-attention weights are loaded automatically.
 
-The public API accepts preprocessed arrays aligned with the checkpoint's training axes, spacing, and intensity normalization. Prepare support images and prompts at the checkpoint's input size, typically 192³. Query images can retain their complete preprocessed grid.
+The default AutoZoom refinement also uses the frozen [original nnInteractive model](https://huggingface.co/MIC-DKFZ/nnInteractive). Download it with:
 
-| Input | Shape | Content |
+```bash
+nninteractive-download-model nnInteractive_v1.0 --model-dir checkpoints
+```
+
+This creates `checkpoints/models/nnInteractive_v1.0/`. Pass that folder as `original_model_dir` in Python or `--original-model-dir` in the CLI, as shown below.
+
+## Inference on your data
+
+Prepare CT images as `float32` NumPy arrays and support annotations as nonempty binary masks of the same target. Each support mask must align with its image. Scans may have different spatial shapes.
+
+| Input | Shape | Example filename |
 |---|---|---|
-| Query | `(1, D, H, W)` | Preprocessed image to segment |
-| Support images | `(K, 1, d, h, w)` | Annotated examples at the model input size |
-| Support prompts | `(K, 7, d, h, w)` | Prompt channels aligned with the support images |
+| Query image | `(1, D, H, W)` | `data/query.npy` |
+| Each support image | `(1, d, h, w)` | `data/support_1.npy` |
+| Each support mask | `(1, d, h, w)` | `data/support_1_mask.npy` |
 
-For dense annotations, place each binary target mask in the checkpoint's `prev_seg` channel (`session.source["channel_mapping"]["prev_seg"]`) and leave the other six channels zero. Supply nonempty support masks. Sparse support prompts can be converted to masks by checkpoints configured for frozen prompt conversion.
+For the released CT recipe, use canonical RAS orientation with arrays stored in `(Z, Y, X)` order and 1.5 mm isotropic spacing. Apply the same spatial transforms to each image and its mask, using nearest-neighbor interpolation for masks. Match the training CT normalization: clip HU to `[-1003, 1545]`, then compute `(image + 99.83097076416016) / 502.92486572265625`. Apply this normalization once, before passing images to the session.
+
+The default uses **four supports and one AutoZoom refinement**. Each support receives a foreground-centered 384³ crop, clipped to the available scan and expanded if needed to retain the target, then resized to 192³. The whole query is downsampled to 192³ for prediction; the prediction is restored to the supplied query grid before AutoZoom.
 
 ```python
 import numpy as np
 from nnInteractive.automatic import AutomaticSegmentationSession
 
-session = AutomaticSegmentationSession("/path/to/checkpoint.pt", device="cuda")
-with np.load("supports.npz") as bank:
-    session.set_context(bank["images"], bank["prompts"])
+session = AutomaticSegmentationSession(
+    "checkpoints/TotalSegmentator-ICL.pt",
+    device="cuda",
+    original_model_dir="checkpoints/models/nnInteractive_v1.0",
+)
 
-query = np.load("query.npy")
-result = session.predict(query, refinement="autozoom")
+images, prompts = [], []
+mask_channel = session.source["channel_mapping"]["prev_seg"]
+for i in range(1, 5):
+    image = np.load(f"data/support_{i}.npy")
+    mask = np.load(f"data/support_{i}_mask.npy")
+    prompt = np.zeros((7, *image.shape[1:]), dtype=np.float32)
+    prompt[mask_channel] = mask[0]
+    images.append(image)
+    prompts.append(prompt)
+
+session.set_context(images, prompts)
+result = session.predict(np.load("data/query.npy"))
 np.save("segmentation.npy", result.mask)
 ```
 
-`result.mask` has the query's spatial shape. Use `refinement="none"` for the automatic model alone. AutoZoom also requires the original nnInteractive model files recorded in the checkpoint; pass `original_model_dir="/path/to/nnInteractive_v1.0"` to the session if they have moved.
+`set_context` prepares the annotated examples that define the target. `predict` segments that target and runs AutoZoom without manual query prompts. The saved mask uses the preprocessed query grid; use your preprocessing transforms to map it back to the original image geometry. Reuse the session and context for additional queries.
 
-The same workflow is available from the command line:
+The default 384³ support context and whole-query downsampling to 192³ may not be best for your dataset. Try different `support_context` sizes in `set_context`, or construct the session with `full_volume=False` for sliding-window query inference, which may preserve useful detail for small structures. Compare the resulting masks on your own data to choose what works best.
+
+Use `set_context(images, prompts, support_context=None)` for supports already prepared at the model input size. Use `session.predict(query, refinement="none")` to skip AutoZoom.
+
+### Command line
+
+The CLI accepts `supports.npz` with `images` shaped `(K, 1, d, h, w)` and `prompts` shaped `(K, 7, d, h, w)`. Put binary masks in the checkpoint's `prev_seg` channel and zero the other channels, as in the Python example. Use the Python API for support scans with different shapes.
 
 ```bash
 nninteractive-automatic predict \
-  --checkpoint /path/to/checkpoint.pt \
-  --query query.npy \
+  --checkpoint checkpoints/TotalSegmentator-ICL.pt \
+  --original-model-dir checkpoints/models/nnInteractive_v1.0 \
+  --query data/query.npy \
   --supports supports.npz \
-  --refinement autozoom \
   --output prediction.npz
 ```
 
-The inference API follows the checkpoint's whole-volume or sliding-window configuration and restores predictions to the query grid before optional refinement.
+The output archive contains `mask` and the initial prediction as `coarse_mask` and `coarse_probabilities`. Pass `--support-context` to change the support crop size, `--sliding-window` to use the checkpoint's query window size, or `--refinement none` to skip AutoZoom.
+
+## How it works
+
+Multiscale cross-attention transfers information from the annotated supports to the query features of nnInteractive's 3D encoder and decoder. The repository supports hierarchical attention with learned support aggregation, 3D rotary position encoding (RoPE), and interleaved query conditioning. Frozen nnInteractive then refines the automatic prediction through its native AutoZoom engine.
+
+## Segmentation examples
+
+![Ground truth, prompted nnInteractive, and Auto nnInteractive segmentations on AbdomenAtlas](imgs/automatic_comparison.png)
+
+Each example pairs a coronal view with an axial overlay. Green marks indicate the point, box, or lasso supplied to nnInteractive; Auto nnInteractive uses four annotated supports without query prompts. Displayed Dice scores measure full-volume overlap for these examples.
 
 ## Training
 
-Start with [hierarchical.json](examples/automatic/hierarchical.json) for learned hierarchical attention, or use the TotalSegmentator template to include generated regions:
+Start with [hierarchical.json](examples/automatic/hierarchical.json), or use the [TotalSegmentator template](examples/automatic/totalsegmentator_supervoxels.json) to include generated training regions. Set the original model and data paths in your configuration, then run:
 
 ```bash
-cp examples/automatic/totalsegmentator_supervoxels.json train.json
-# Edit checkpoint_dir, data_manifest, and supervoxel_manifest for your data.
-nninteractive-automatic train --config train.json --output runs/totalseg
+nninteractive-automatic train --config train.json --output runs/model
 ```
 
-The [TotalSegmentator data guide](documentation/totalsegmentator_supervoxels.md) covers manifest preparation, region generation, and mixing real-label and generated-region episodes. Training supports and held-out queries follow the manifest's explicit splits.
-
-For a new learned hierarchical attention run, add these settings under `model` in the training configuration:
-
-```json
-{
-  "cross_attention_type": "hierarchical",
-  "support_aggregation": "learned",
-  "rope_3d": true,
-  "interleave_query_context": true
-}
-```
-
-Resume with `--resume runs/totalseg/last.pt`. Architecture changes require a new run. `best.pt` reflects the configured validation metric, which may use query patches rather than complete volumes; keep the preprocessing, support bank, and evaluation cases fixed when comparing checkpoints.
+Resume with `--resume runs/model/last.pt`. Architecture changes require a new run. See the [quick start](documentation/automatic.rst) for manifest preparation and the [generated-region guide](documentation/totalsegmentator_supervoxels.md) for additional training masks.
 
 ## Documentation
 

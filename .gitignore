@@ -115,6 +115,8 @@ ENV/
 
 !documentation/assets/scribble_example.png
 !imgs/Logos/*
+!/imgs/automatic_overview.png
+!/imgs/automatic_comparison.png
 
 CLAUDE.md
 AGENTS.md
