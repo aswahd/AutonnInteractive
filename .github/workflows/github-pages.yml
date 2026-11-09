@@ -1,0 +1,43 @@
+name: Deploy project page
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+env:
+  BUILD_PATH: site # Use '.' in a standalone site repository.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/configure-pages@v5
+        id: pages
+      - run: npm ci
+        working-directory: ${{ env.BUILD_PATH }}
+      - run: npm run build
+        working-directory: ${{ env.BUILD_PATH }}
+        env:
+          SITE_URL: ${{ steps.pages.outputs.origin }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ env.BUILD_PATH }}/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

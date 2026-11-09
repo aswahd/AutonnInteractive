@@ -1,0 +1,50 @@
+---
+title: Auto nnInteractive — From a prompt to a labeled dataset
+description: Start with a sparse lasso prompt, build four support masks with nnInteractive, and label new CT scans automatically.
+theme: light
+favicon: assets/mark.svg
+---
+
+import Header from "./components/Header.astro";
+import Wide from "./components/Wide.astro";
+import HighlightedSection from "./components/HighlightedSection.astro";
+import Workflow from "./components/Workflow.astro";
+
+<Header
+  title="Auto nnInteractive"
+  conference="From a sparse prompt to a labeled dataset."
+  authors={[]}
+  links={[
+    { name: "Code", url: "https://github.com/aswahd/AutonnInteractive", icon: "ri:github-line" },
+    { name: "Checkpoint", url: "https://drive.google.com/file/d/10e9a8rOpMxN4z3JZes8LlOi5CJUD3grB/view?usp=sharing", icon: "ri:download-line" },
+    { name: "Try the workflow", url: "#workflow", icon: "ri:play-circle-line" },
+  ]}
+/>
+
+<p class="text-center text-xl text-zinc-600">Outline the target in four scans. Let nnInteractive build the support masks. Then let Auto nnInteractive carry that target to the rest of your dataset.</p>
+
+<Wide>
+  <Workflow />
+</Wide>
+
+<HighlightedSection>
+
+## A few prompts become a reusable task
+
+Auto nnInteractive adapts nnInteractive to segment new scans from annotated examples. The support images show the anatomy; their masks define the target. Multiscale attention transfers that information to each new query, without retraining or additional query prompts.
+
+</HighlightedSection>
+
+## From outline to dataset
+
+**01 · Prompt four scans.** Draw a lasso around the structure on a slice of each support scan. nnInteractive expands each sparse interaction into a full 3D mask.
+
+**02 · Build the support set.** Pair those four masks with their CT images. Together they specify the structure you want to segment in the rest of the dataset.
+
+**03 · Label new scans.** Reuse the same support set for every query. Auto nnInteractive predicts the target mask, then the original nnInteractive model refines it with AutoZoom. The AbdomenAtlas examples show liver, spleen, left kidney, and pancreas, with a slice overlay and 3D preview for each scan.
+
+## Try your own data
+
+Start with the [TotalSegmentator-trained checkpoint](https://drive.google.com/file/d/10e9a8rOpMxN4z3JZes8LlOi5CJUD3grB/view?usp=sharing) and follow the [inference quick start](https://github.com/aswahd/AutonnInteractive#inference-on-your-data).
+
+By default, foreground-centered 384³ support crops and the complete query are resized to 192³, followed by one AutoZoom refinement. Different support examples, context sizes, or sliding-window query inference may suit your data better. Inspect the predictions and explore what works for your dataset.

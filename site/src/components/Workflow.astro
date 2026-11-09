@@ -1,0 +1,26 @@
+    <section id="workflow" class="workflow not-prose" aria-labelledby="workflow-title">
+      <div class="section-heading"><div><span class="eyebrow">THE WORKFLOW</span><h2 id="workflow-title">Teach the target. Then scale.</h2></div><label class="organ-picker">AbdomenAtlas CT <select id="organ" aria-label="Target organ" disabled></select></label></div>
+      <div class="demo" id="demo" data-base={import.meta.env.BASE_URL} data-phase="0" aria-busy="true">
+        <div class="demo-toolbar"><span class="recording"><span class="status-dot"></span> Recorded model outputs</span><button id="mask-toggle" class="quiet-button" aria-pressed="true" disabled>Show masks</button></div>
+        <div class="stage-buttons" role="group" aria-label="Workflow stages">
+          <button data-stage="0" disabled><span>01</span> Outline the target</button>
+          <button data-stage="1" disabled><span>02</span> Build four supports</button>
+          <button data-stage="2" disabled><span>03</span> Label the rest</button>
+        </div>
+        <div class="workspace">
+          <p id="stage-caption" class="demo-caption" aria-live="polite">Step 1 of 3 · Draw a lasso around the target in each of four support scans.</p>
+          <div class="row-heading"><span>YOUR SUPPORT SET</span><span id="support-count">0 / 4 ready</span></div>
+          <div class="support-grid" id="supports"></div>
+          <div id="query-section" hidden>
+          <div class="transfer" aria-hidden="true"><div class="transfer-line"></div><span>Auto nnInteractive <b>↓</b></span><div class="transfer-line"></div></div>
+          <div class="row-heading"><span>NEW SCANS · NO QUERY PROMPTS</span><span id="query-count">0 / 8 labeled</span></div>
+          <div class="query-grid" id="queries"></div>
+          </div>
+          <p id="load-status" role="status">Loading the recorded example…</p>
+        </div>
+        <div class="playback"><button id="play" class="play-button" disabled><span aria-hidden="true">▶</span> Play workflow</button><div class="progress" aria-hidden="true"><div id="progress-fill"></div></div><span id="playback-time">00:00 / 00:18</span><button id="replay" class="quiet-button" disabled>Replay ↺</button></div>
+      </div>
+      <p class="demo-note">An illustrated playback of saved predictions. Each tile pairs an axial slice with its 3D segmentation. Playback timing does not represent inference speed.</p>
+    </section>
+
+<script src="../scripts/demo.js"></script>
